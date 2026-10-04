@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PANEL_HOST: 0.0.0.0  # konteyner ichida; tashqariga faqat localhost orqali ochiq
+    ports:
+      - "127.0.0.1:8080:8080"  # domen ulangach Caddy (HTTPS) shu portga yo'naltiradi
+    volumes:
+      - ./data:/app/data

@@ -1,0 +1,207 @@
+"""Rozigrish bo'yicha DB amallari (Telegram'ga bog'liq emas)."""
+
+from datetime import datetime
+
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tgagent.agents.giveaway import draw
+from tgagent.agents.giveaway.models import (
+    ClaimStep,
+    Giveaway,
+    GiveawayStatus,
+    Participant,
+    Prize,
+    PrizeType,
+    SponsorChannel,
+    Winner,
+    WinnerStatus,
+)
+from tgagent.core.db import utcnow
+
+
+async def upsert_sponsor(session: AsyncSession, chat_id: int, title: str, link: str) -> SponsorChannel:
+    sponsor = await session.scalar(select(SponsorChannel).where(SponsorChannel.chat_id == chat_id))
+    if sponsor is None:
+        sponsor = SponsorChannel(chat_id=chat_id, title=title, link=link)
+        session.add(sponsor)
+    else:
+        sponsor.title, sponsor.link = title, link
+    await session.commit()
+    return sponsor
+
+
+async def create_giveaway(
+    session: AsyncSession,
+    *,
+    title: str,
+    description: str,
+    prizes: list[Prize],
+    ends_at: datetime,
+    chat_id: int,
+    sponsor_ids: list[int],
+) -> Giveaway:
+    seed = draw.new_seed()
+    sponsors = (await session.scalars(select(SponsorChannel).where(SponsorChannel.id.in_(sponsor_ids)))).all()
+    giveaway = Giveaway(
+        title=title,
+        description=description,
+        prizes_data=[p.to_dict() for p in prizes],
+        ends_at=ends_at,
+        seed=seed,
+        commit_hash=draw.commit_of(seed),
+        chat_id=chat_id,
+        sponsors=list(sponsors),
+    )
+    session.add(giveaway)
+    await session.commit()
+    return giveaway
+
+
+async def get_participant(session: AsyncSession, giveaway_id: int, user_id: int) -> Participant | None:
+    return await session.scalar(
+        select(Participant).where(Participant.giveaway_id == giveaway_id, Participant.user_id == user_id)
+    )
+
+
+async def add_participant(
+    session: AsyncSession, giveaway_id: int, user_id: int, full_name: str, username: str | None
+) -> tuple[Participant, bool]:
+    """Ishtirokchini qo'shadi. (participant, yangi_qo'shildimi) qaytaradi."""
+    for _ in range(5):
+        existing = await get_participant(session, giveaway_id, user_id)
+        if existing:
+            return existing, False
+        last = await session.scalar(
+            select(func.max(Participant.number)).where(Participant.giveaway_id == giveaway_id)
+        )
+        participant = Participant(
+            giveaway_id=giveaway_id,
+            user_id=user_id,
+            number=(last or 0) + 1,
+            full_name=full_name[:255],
+            username=username,
+        )
+        session.add(participant)
+        try:
+            await session.commit()
+            return participant, True
+        except IntegrityError:
+            await session.rollback()  # raqam band bo'ldi yoki parallel qo'shildi — qayta urinamiz
+    raise RuntimeError("Ishtirokchini qo'shib bo'lmadi")
+
+
+async def participants_count(session: AsyncSession, giveaway_id: int) -> int:
+    return await session.scalar(
+        select(func.count()).select_from(Participant).where(Participant.giveaway_id == giveaway_id)
+    ) or 0
+
+
+async def list_participants(session: AsyncSession, giveaway_id: int) -> list[Participant]:
+    return list(
+        (
+            await session.scalars(
+                select(Participant).where(Participant.giveaway_id == giveaway_id).order_by(Participant.number)
+            )
+        ).all()
+    )
+
+
+async def active_giveaways(session: AsyncSession) -> list[Giveaway]:
+    return list(
+        (
+            await session.scalars(
+                select(Giveaway).where(Giveaway.status == GiveawayStatus.ACTIVE).order_by(Giveaway.ends_at)
+            )
+        ).all()
+    )
+
+
+async def due_giveaway_ids(session: AsyncSession, now: datetime | None = None) -> list[int]:
+    now = now or utcnow()
+    return list(
+        (
+            await session.scalars(
+                select(Giveaway.id).where(
+                    Giveaway.status.in_([GiveawayStatus.ACTIVE, GiveawayStatus.DRAWING]),
+                    Giveaway.ends_at <= now,
+                )
+            )
+        ).all()
+    )
+
+
+def first_claim_step(prize_type: PrizeType) -> ClaimStep:
+    return ClaimStep.CARD if prize_type == PrizeType.MONEY else ClaimStep.FULL_NAME
+
+
+async def pending_claim(session: AsyncSession, user_id: int) -> Winner | None:
+    """G'olibdan hali ma'lumot kutilayotgan eng eski yutuq."""
+    return await session.scalar(
+        select(Winner)
+        .where(Winner.user_id == user_id, Winner.status == WinnerStatus.AWAITING_INFO)
+        .order_by(Winner.id)
+        .limit(1)
+    )
+
+
+async def open_payouts(session: AsyncSession) -> list[Winner]:
+    return list(
+        (
+            await session.scalars(
+                select(Winner)
+                .where(Winner.status.in_([WinnerStatus.AWAITING_INFO, WinnerStatus.INFO_RECEIVED]))
+                .order_by(Winner.status.desc(), Winner.id)
+            )
+        ).all()
+    )
+
+
+def mark_done(winner: Winner) -> None:
+    """Yutuq topshirildi: shaxsiy ma'lumotlar tozalanadi (karta faqat maskalangan holda qoladi)."""
+    winner.status = WinnerStatus.DONE
+    winner.done_at = utcnow()
+    winner.card_enc = winner.card_holder_enc = None
+    winner.full_name_enc = winner.phone_enc = winner.address_enc = None
+
+
+async def finish_now(session: AsyncSession, giveaway_id: int) -> bool:
+    """Faol rozigrishni hozir yakunlashga qo'yadi (draw_loop 30 soniyada ushlaydi)."""
+    g = await session.get(Giveaway, giveaway_id)
+    if g is None or g.status != GiveawayStatus.ACTIVE:
+        return False
+    g.ends_at = utcnow()
+    await session.commit()
+    return True
+
+
+async def cancel_giveaway(session: AsyncSession, giveaway_id: int) -> bool:
+    g = await session.get(Giveaway, giveaway_id)
+    if g is None or g.status != GiveawayStatus.ACTIVE:
+        return False
+    g.status = GiveawayStatus.CANCELLED
+    await session.commit()
+    return True
+
+
+async def list_giveaways(session: AsyncSession, status: GiveawayStatus | None = None) -> list[Giveaway]:
+    q = select(Giveaway).order_by(Giveaway.id.desc())
+    if status:
+        q = q.where(Giveaway.status == status)
+    return list((await session.scalars(q)).all())
+
+
+async def participant_counts(session: AsyncSession) -> dict[int, int]:
+    rows = await session.execute(select(Participant.giveaway_id, func.count()).group_by(Participant.giveaway_id))
+    return dict(rows.all())
+
+
+async def list_winners(session: AsyncSession, giveaway_id: int) -> list[Winner]:
+    return list(
+        (await session.scalars(select(Winner).where(Winner.giveaway_id == giveaway_id).order_by(Winner.place))).all()
+    )
+
+
+async def list_sponsors(session: AsyncSession) -> list[SponsorChannel]:
+    return list((await session.scalars(select(SponsorChannel).order_by(SponsorChannel.title))).all())

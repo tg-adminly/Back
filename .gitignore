@@ -1,0 +1,10 @@
+.env
+data/
+*.session
+*.session-journal
+__pycache__/
+.venv/
+.pytest_cache/
+.claude/settings.local.json
+panel/node_modules/
+panel/dist/
