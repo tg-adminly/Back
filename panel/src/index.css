@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #fdf2f7;
+  --color-brand-100: #fce7f1;
+  --color-brand-500: #e11d74;
+  --color-brand-600: #c8156a;
+  --color-brand-700: #a3115a;
+}
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+html { color-scheme: light dark; }
+body { @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100; }

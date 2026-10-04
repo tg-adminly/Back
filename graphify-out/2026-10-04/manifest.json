@@ -1,0 +1,362 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1790620331.466829,
+    "seen": 1791090979.3172429,
+    "ast_hash": "e6aa1c9d99ec9a9c026d21f1e52e5720",
+    "semantic_hash": "e6aa1c9d99ec9a9c026d21f1e52e5720"
+  },
+  "panel/.oxlintrc.json": {
+    "mtime": 1790741637.1788805,
+    "seen": 1791090979.317247,
+    "ast_hash": "029f4905006c1fffd96bc863e2d98d3e",
+    "semantic_hash": "029f4905006c1fffd96bc863e2d98d3e"
+  },
+  "panel/package.json": {
+    "mtime": 1790741674.1494882,
+    "seen": 1791090979.317248,
+    "ast_hash": "ec894ef2f01b779f37e2243d9fdc53ab",
+    "semantic_hash": "ec894ef2f01b779f37e2243d9fdc53ab"
+  },
+  "panel/src/App.tsx": {
+    "mtime": 1790741761.8494294,
+    "seen": 1791090979.317249,
+    "ast_hash": "7beb2d93b93fbb20934d9c927d97f8ad",
+    "semantic_hash": "7beb2d93b93fbb20934d9c927d97f8ad"
+  },
+  "panel/src/api.ts": {
+    "mtime": 1790741716.0066252,
+    "seen": 1791090979.317249,
+    "ast_hash": "67b611a0aecc720f2141f17f8a11167b",
+    "semantic_hash": "67b611a0aecc720f2141f17f8a11167b"
+  },
+  "panel/src/main.tsx": {
+    "mtime": 1790741704.1378171,
+    "seen": 1791090979.31725,
+    "ast_hash": "7c3b4cbe29d49e1ec4d6e67993e5d122",
+    "semantic_hash": "7c3b4cbe29d49e1ec4d6e67993e5d122"
+  },
+  "panel/src/pages/Dashboard.tsx": {
+    "mtime": 1790741983.6999514,
+    "seen": 1791090979.317251,
+    "ast_hash": "3e32787530f95658e07c89ea63d765fe",
+    "semantic_hash": "3e32787530f95658e07c89ea63d765fe"
+  },
+  "panel/src/pages/GiveawayNew.tsx": {
+    "mtime": 1790741843.0197713,
+    "seen": 1791090979.317251,
+    "ast_hash": "931e46a376069f62cfe10b9a42be2fb9",
+    "semantic_hash": "931e46a376069f62cfe10b9a42be2fb9"
+  },
+  "panel/src/pages/GiveawayView.tsx": {
+    "mtime": 1790742070.0967386,
+    "seen": 1791090979.3172522,
+    "ast_hash": "b3e764ed98c811e34efe48e997c5b150",
+    "semantic_hash": "b3e764ed98c811e34efe48e997c5b150"
+  },
+  "panel/src/pages/Giveaways.tsx": {
+    "mtime": 1790741794.7626352,
+    "seen": 1791090979.317253,
+    "ast_hash": "ca03a81ab0183f1d81ff947c30bee48f",
+    "semantic_hash": "ca03a81ab0183f1d81ff947c30bee48f"
+  },
+  "panel/src/pages/Login.tsx": {
+    "mtime": 1790749644.2320945,
+    "seen": 1791090979.317253,
+    "ast_hash": "9040c6d641e8a3707205e6533c2c3806",
+    "semantic_hash": "9040c6d641e8a3707205e6533c2c3806"
+  },
+  "panel/src/pages/Payouts.tsx": {
+    "mtime": 1790742070.0970411,
+    "seen": 1791090979.317256,
+    "ast_hash": "0fe995ab699a4242955e33894e399755",
+    "semantic_hash": "0fe995ab699a4242955e33894e399755"
+  },
+  "panel/src/pages/Sponsors.tsx": {
+    "mtime": 1790741911.1081247,
+    "seen": 1791090979.317256,
+    "ast_hash": "43c1d8e1565484d2dd1b61ef055110d6",
+    "semantic_hash": "43c1d8e1565484d2dd1b61ef055110d6"
+  },
+  "panel/src/ui.tsx": {
+    "mtime": 1790742070.0963917,
+    "seen": 1791090979.317257,
+    "ast_hash": "7dca6661250a92ae035ddb27bbf0025a",
+    "semantic_hash": "7dca6661250a92ae035ddb27bbf0025a"
+  },
+  "panel/tsconfig.app.json": {
+    "mtime": 1790741637.1818576,
+    "seen": 1791090979.317258,
+    "ast_hash": "5f2dafd737dea8a4ddcbb10f5113ac5a",
+    "semantic_hash": "5f2dafd737dea8a4ddcbb10f5113ac5a"
+  },
+  "panel/tsconfig.json": {
+    "mtime": 1790741637.182024,
+    "seen": 1791090979.317259,
+    "ast_hash": "a3d39fa780ebff65444de257f291ce6c",
+    "semantic_hash": "a3d39fa780ebff65444de257f291ce6c"
+  },
+  "panel/tsconfig.node.json": {
+    "mtime": 1790741637.182192,
+    "seen": 1791090979.317259,
+    "ast_hash": "f9cb81ddcea69ffdab672fc8c48dca66",
+    "semantic_hash": "f9cb81ddcea69ffdab672fc8c48dca66"
+  },
+  "panel/vite.config.ts": {
+    "mtime": 1790741704.1294062,
+    "seen": 1791090979.31726,
+    "ast_hash": "b797a31da442458c7b6148ab648405a7",
+    "semantic_hash": "b797a31da442458c7b6148ab648405a7"
+  },
+  "pyproject.toml": {
+    "mtime": 1790741373.7547412,
+    "seen": 1791090979.317261,
+    "ast_hash": "9a8df81ffc12182b516648b1c897d39c",
+    "semantic_hash": "9a8df81ffc12182b516648b1c897d39c"
+  },
+  "src/tgagent/__init__.py": {
+    "mtime": 1790620345.5304267,
+    "seen": 1791090979.3172622,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/__main__.py": {
+    "mtime": 1790741593.4643643,
+    "seen": 1791090979.3172631,
+    "ast_hash": "f67f22cd31fc87d0dfdc229d79b0040d",
+    "semantic_hash": "f67f22cd31fc87d0dfdc229d79b0040d"
+  },
+  "src/tgagent/agents/__init__.py": {
+    "mtime": 1790620345.5307684,
+    "seen": 1791090979.3172631,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/agents/giveaway/__init__.py": {
+    "mtime": 1790620345.530837,
+    "seen": 1791090979.3172638,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/agents/giveaway/actions.py": {
+    "mtime": 1790741396.7629004,
+    "seen": 1791090979.3172648,
+    "ast_hash": "cf2b33ec0c9bb645c0e3d4dde023c3b9",
+    "semantic_hash": "cf2b33ec0c9bb645c0e3d4dde023c3b9"
+  },
+  "src/tgagent/agents/giveaway/draw.py": {
+    "mtime": 1790620401.082594,
+    "seen": 1791090979.317266,
+    "ast_hash": "dde9bd2cc81bb58405efe3640e305942",
+    "semantic_hash": "dde9bd2cc81bb58405efe3640e305942"
+  },
+  "src/tgagent/agents/giveaway/handlers/__init__.py": {
+    "mtime": 1790620345.5309021,
+    "seen": 1791090979.317267,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/agents/giveaway/handlers/admin.py": {
+    "mtime": 1790741416.7713788,
+    "seen": 1791090979.317267,
+    "ast_hash": "203401a7400162dd616a0c3670d2d31b",
+    "semantic_hash": "203401a7400162dd616a0c3670d2d31b"
+  },
+  "src/tgagent/agents/giveaway/handlers/editor.py": {
+    "mtime": 1790620716.3811474,
+    "seen": 1791090979.317268,
+    "ast_hash": "af29f287b7688afc9ac0abd6b3dc79fd",
+    "semantic_hash": "af29f287b7688afc9ac0abd6b3dc79fd"
+  },
+  "src/tgagent/agents/giveaway/handlers/participant.py": {
+    "mtime": 1790738127.9512897,
+    "seen": 1791090979.317269,
+    "ast_hash": "21df9aad5615456af913d49fe2877b15",
+    "semantic_hash": "21df9aad5615456af913d49fe2877b15"
+  },
+  "src/tgagent/agents/giveaway/jobs.py": {
+    "mtime": 1790705610.2120752,
+    "seen": 1791090979.31727,
+    "ast_hash": "c2df8a35b5822ad7445312f4c43b39b8",
+    "semantic_hash": "c2df8a35b5822ad7445312f4c43b39b8"
+  },
+  "src/tgagent/agents/giveaway/keyboards.py": {
+    "mtime": 1790705573.5419972,
+    "seen": 1791090979.317271,
+    "ast_hash": "cee6f52f2d56c840e0e5f10fdc1841df",
+    "semantic_hash": "cee6f52f2d56c840e0e5f10fdc1841df"
+  },
+  "src/tgagent/agents/giveaway/models.py": {
+    "mtime": 1790705521.2289798,
+    "seen": 1791090979.317271,
+    "ast_hash": "af0249a92654fb5a839f6798fec43dc2",
+    "semantic_hash": "af0249a92654fb5a839f6798fec43dc2"
+  },
+  "src/tgagent/agents/giveaway/service.py": {
+    "mtime": 1790741416.7408788,
+    "seen": 1791090979.317272,
+    "ast_hash": "3ef1f815cba950000bb5568e8f330002",
+    "semantic_hash": "3ef1f815cba950000bb5568e8f330002"
+  },
+  "src/tgagent/agents/giveaway/texts.py": {
+    "mtime": 1790737753.4026284,
+    "seen": 1791090979.317272,
+    "ast_hash": "70953326f66a1c343148199ef1fb281f",
+    "semantic_hash": "70953326f66a1c343148199ef1fb281f"
+  },
+  "src/tgagent/agents/giveaway/validators.py": {
+    "mtime": 1790705562.010669,
+    "seen": 1791090979.3172731,
+    "ast_hash": "166318b60ccf93bbe5c3530a1d16ae7f",
+    "semantic_hash": "166318b60ccf93bbe5c3530a1d16ae7f"
+  },
+  "src/tgagent/channels/__init__.py": {
+    "mtime": 1790620345.5306194,
+    "seen": 1791090979.3172731,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/channels/telegram_bot/__init__.py": {
+    "mtime": 1790620345.5306988,
+    "seen": 1791090979.31729,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/channels/telegram_bot/chats.py": {
+    "mtime": 1790620372.391704,
+    "seen": 1791090979.317292,
+    "ast_hash": "49069b547e07f45fc76fc72e00abdc86",
+    "semantic_hash": "49069b547e07f45fc76fc72e00abdc86"
+  },
+  "src/tgagent/channels/telegram_bot/notify.py": {
+    "mtime": 1790620519.1600935,
+    "seen": 1791090979.3172932,
+    "ast_hash": "c3fcaf2e44006e8d9134601112d3278d",
+    "semantic_hash": "c3fcaf2e44006e8d9134601112d3278d"
+  },
+  "src/tgagent/config.py": {
+    "mtime": 1790741439.9808943,
+    "seen": 1791090979.3172941,
+    "ast_hash": "0da2d453e862566921b02999ee6a3c6c",
+    "semantic_hash": "0da2d453e862566921b02999ee6a3c6c"
+  },
+  "src/tgagent/core/__init__.py": {
+    "mtime": 1790620345.530535,
+    "seen": 1791090979.317295,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/tgagent/core/crypto.py": {
+    "mtime": 1790620361.7432277,
+    "seen": 1791090979.317296,
+    "ast_hash": "bcba8f0fa94b4f51ba8de03faab0f741",
+    "semantic_hash": "bcba8f0fa94b4f51ba8de03faab0f741"
+  },
+  "src/tgagent/core/db.py": {
+    "mtime": 1790741439.9805765,
+    "seen": 1791090979.317296,
+    "ast_hash": "a9b7b61006182c257768d40ff87331a8",
+    "semantic_hash": "a9b7b61006182c257768d40ff87331a8"
+  },
+  "src/tgagent/panel/__init__.py": {
+    "mtime": 1790741439.9528308,
+    "seen": 1791090979.317299,
+    "ast_hash": "b254b22bc8273172bc3fd3aca0aa5e9f",
+    "semantic_hash": "b254b22bc8273172bc3fd3aca0aa5e9f"
+  },
+  "src/tgagent/panel/api.py": {
+    "mtime": 1790741562.995782,
+    "seen": 1791090979.3173,
+    "ast_hash": "971f6a2c3d3948b811194f9bf83f955b",
+    "semantic_hash": "971f6a2c3d3948b811194f9bf83f955b"
+  },
+  "src/tgagent/panel/auth.py": {
+    "mtime": 1790741473.2636163,
+    "seen": 1791090979.3173,
+    "ast_hash": "7e66c44fe0e19e7ea0a3ac596067c4c6",
+    "semantic_hash": "7e66c44fe0e19e7ea0a3ac596067c4c6"
+  },
+  "src/tgagent/panel/bot_login.py": {
+    "mtime": 1790741483.207048,
+    "seen": 1791090979.317301,
+    "ast_hash": "ebce96752baa070be23e60ff75dc6641",
+    "semantic_hash": "ebce96752baa070be23e60ff75dc6641"
+  },
+  "src/tgagent/panel/models.py": {
+    "mtime": 1790741439.9557083,
+    "seen": 1791090979.317302,
+    "ast_hash": "3d496fcdf304cea509559f2d467098be",
+    "semantic_hash": "3d496fcdf304cea509559f2d467098be"
+  },
+  "src/tgagent/panel/server.py": {
+    "mtime": 1790741593.4645386,
+    "seen": 1791090979.317303,
+    "ast_hash": "b702eed88c66e34d516e4c65f33117c1",
+    "semantic_hash": "b702eed88c66e34d516e4c65f33117c1"
+  },
+  "src/tgagent/panel/texts.py": {
+    "mtime": 1790741563.0012703,
+    "seen": 1791090979.3173041,
+    "ast_hash": "ee261b767752c16bb962bfe5d58a2449",
+    "semantic_hash": "ee261b767752c16bb962bfe5d58a2449"
+  },
+  "tests/test_draw.py": {
+    "mtime": 1790620675.5138566,
+    "seen": 1791090979.3173041,
+    "ast_hash": "b6286d891b695f8c898bacddbd1a1477",
+    "semantic_hash": "b6286d891b695f8c898bacddbd1a1477"
+  },
+  "tests/test_panel.py": {
+    "mtime": 1790741632.2137952,
+    "seen": 1791090979.317305,
+    "ast_hash": "1ba3acdc65d7d0c11a82e6897ee3fb94",
+    "semantic_hash": "1ba3acdc65d7d0c11a82e6897ee3fb94"
+  },
+  "tests/test_service.py": {
+    "mtime": 1790705624.8206599,
+    "seen": 1791090979.317306,
+    "ast_hash": "a7ba8e729ad40d67e03f25813f3ea152",
+    "semantic_hash": "a7ba8e729ad40d67e03f25813f3ea152"
+  },
+  "tests/test_throttle.py": {
+    "mtime": 1790737761.6110938,
+    "seen": 1791090979.317307,
+    "ast_hash": "36c8b7194d046aa02738a0917f3e7d2e",
+    "semantic_hash": "36c8b7194d046aa02738a0917f3e7d2e"
+  },
+  "tests/test_validators.py": {
+    "mtime": 1790705610.2173948,
+    "seen": 1791090979.317308,
+    "ast_hash": "6b5acb4c620b337aa6a105f1bcf82f59",
+    "semantic_hash": "6b5acb4c620b337aa6a105f1bcf82f59"
+  },
+  "CLAUDE.md": {
+    "mtime": 1790742092.4690578,
+    "seen": 1791091154.53091,
+    "ast_hash": "b2273fb79c91f5a08b1fd176f3e5578a",
+    "semantic_hash": ""
+  },
+  "SPEC.md": {
+    "mtime": 1790742092.4698322,
+    "seen": 1791091154.530913,
+    "ast_hash": "207b24949fa392ca9a128faf845f9e6c",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1790742071.6034672,
+    "seen": 1791091154.530914,
+    "ast_hash": "fe4fd0fbb050b81849cf2cff09520923",
+    "semantic_hash": ""
+  },
+  "panel/index.html": {
+    "mtime": 1790741704.1226459,
+    "seen": 1791091154.530914,
+    "ast_hash": "5f79e5f5d3c76588df40c65b491ed538",
+    "semantic_hash": ""
+  },
+  "panel/public/favicon.svg": {
+    "mtime": 1790741704.1262696,
+    "seen": 1791091154.530915,
+    "ast_hash": "90d6df9fa5b1e7db1d1d6c7dda3bfb62",
+    "semantic_hash": ""
+  }
+}
