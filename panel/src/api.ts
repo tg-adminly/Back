@@ -62,6 +62,12 @@ export interface Sponsor {
   chat_id: number
 }
 
+export interface BotChat {
+  chat_id: number
+  title: string
+  username: string | null
+}
+
 export type GiveawayStatus = 'active' | 'drawing' | 'finished' | 'cancelled'
 export interface Giveaway {
   id: number

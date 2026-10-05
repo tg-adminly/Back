@@ -26,6 +26,7 @@ from tgagent.agents.giveaway.models import (
     giveaway_sponsors,
 )
 from tgagent.agents.giveaway.validators import parse_prize
+from tgagent.channels.telegram_bot import tracking
 from tgagent.channels.telegram_bot.chats import ChatRef
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
@@ -35,6 +36,7 @@ from tgagent.panel import texts as ptexts
 
 MAX_PROOF_BYTES = 10 * 1024 * 1024
 _TAG = re.compile(r"<[^>]+>")
+_INVITE = re.compile(r"t\.me/(?:\+|joinchat/)")  # yopiq kanal taklif linki
 
 
 @dataclass
@@ -377,8 +379,20 @@ async def sponsor_list(d: D, _: Owner):
         return [sponsor_out(sp) for sp in await service.list_sponsors(s)]
 
 
+@router.get("/bot-chats")
+async def bot_chats(d: D, _: Owner):
+    """Bot admin bo'lgan, hali homiy qilinmagan kanallar (yopiq kanalni ID'siz tanlash uchun)."""
+    async with d.sm() as s:
+        taken = set(await s.scalars(select(SponsorChannel.chat_id)))
+        chats = await tracking.list_chats(s)
+    taken.add(d.main_chat.id)
+    return [{"chat_id": c.chat_id, "title": c.title, "username": c.username} for c in chats if c.chat_id not in taken]
+
+
 @router.post("/sponsors")
 async def sponsor_add(body: SponsorIn, d: D, _: Owner):
+    if _INVITE.search(body.ref):
+        raise HTTPException(400, ptexts.API_INVITE_AS_REF)
     link = (body.link or "").strip() or None
     if link and not link.startswith("https://t.me/"):
         raise HTTPException(400, ptexts.API_BAD_LINK)

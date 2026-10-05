@@ -32,6 +32,7 @@ export default function GiveawayNew() {
 
   const sponsors = useQuery({ queryKey: ['sponsors'], queryFn: () => api.get<Sponsor[]>('/sponsors') })
   const body = { title, description, prizes, ends_at: endsAt, sponsor_ids: sponsorIds }
+  const chosen = (sponsors.data ?? []).filter((s) => sponsorIds.includes(s.id))
   const bodyKey = JSON.stringify(body)
 
   // Yozish to'xtagach 400 ms o'tib post ko'rinishini yangilaymiz
@@ -133,18 +134,23 @@ export default function GiveawayNew() {
                 + Qo'shish
               </Button>
             </div>
-            {sponsors.data?.length ? (
+            {chosen.length ? (
               <div className="space-y-1">
-                {sponsors.data.map((s) => (
-                  <label key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                    <input
-                      type="checkbox"
-                      className="accent-brand-500"
-                      checked={sponsorIds.includes(s.id)}
-                      onChange={(e) => setSponsorIds((ids) => (e.target.checked ? [...ids, s.id] : ids.filter((x) => x !== s.id)))}
-                    />
-                    <span className="text-sm">{s.title}</span>
-                  </label>
+                {chosen.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">{s.title}</div>
+                      <div className="truncate text-xs text-zinc-400">{s.link}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-lg leading-none text-zinc-400 hover:text-red-600"
+                      aria-label="Olib tashlash"
+                      onClick={() => setSponsorIds((ids) => ids.filter((x) => x !== s.id))}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -155,7 +161,7 @@ export default function GiveawayNew() {
 
         <div className="lg:sticky lg:top-8 lg:self-start">
           <div className="mb-2 text-sm font-medium">Kanalda shunday ko'rinadi</div>
-          <PostPreview html={preview?.post_html ?? null} sponsors={(sponsors.data ?? []).filter((s) => sponsorIds.includes(s.id))} />
+          <PostPreview html={preview?.post_html ?? null} sponsors={chosen} />
           <div className="mt-4 space-y-3">
             <ErrorBox error={publish.error} />
             <Button className="w-full" disabled={!ready || publish.isPending} onClick={() => setConfirming(true)}>
@@ -167,9 +173,10 @@ export default function GiveawayNew() {
 
       {addingSponsor && (
         <Modal title="Homiy kanal qo'shish" onClose={() => setAddingSponsor(false)}>
-          <SponsorAddForm
-            onAdded={(s) => {
-              setSponsorIds((ids) => (ids.includes(s.id) ? ids : [...ids, s.id]))
+          <SponsorModalBody
+            sponsors={(sponsors.data ?? []).filter((s) => !sponsorIds.includes(s.id))}
+            onChoose={(ids) => {
+              setSponsorIds((cur) => [...cur, ...ids.filter((id) => !cur.includes(id))])
               setAddingSponsor(false)
             }}
           />
@@ -212,6 +219,78 @@ export function PostPreview({ html, sponsors, count = 0 }: { html: string | null
         <div className="rounded-lg bg-white/70 py-1.5 text-center text-xs font-medium text-sky-700 dark:bg-zinc-800/70 dark:text-sky-300">
           🎁 Qatnashish{count ? ` (${count})` : ''}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** Homiy qo'shish oynasi: eski homiylardan tanlash yoki yangisini qo'shish */
+function SponsorModalBody({ sponsors, onChoose }: { sponsors: Sponsor[]; onChoose: (ids: number[]) => void }) {
+  const [picking, setPicking] = useState(false)
+
+  if (picking) return <OldSponsorPicker sponsors={sponsors} onChoose={onChoose} onBack={() => setPicking(false)} />
+  return (
+    <div className="space-y-4">
+      {sponsors.length > 0 && (
+        <>
+          <Button variant="secondary" className="w-full" onClick={() => setPicking(true)}>
+            📋 Eski homiylardan tanlash ({sponsors.length})
+          </Button>
+          <div className="flex items-center gap-3 text-xs text-zinc-400">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            yoki yangi homiy qo'shing
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+          </div>
+        </>
+      )}
+      <SponsorAddForm onAdded={(s) => onChoose([s.id])} />
+    </div>
+  )
+}
+
+function OldSponsorPicker({ sponsors, onChoose, onBack }: { sponsors: Sponsor[]; onChoose: (ids: number[]) => void; onBack: () => void }) {
+  const [q, setQ] = useState('')
+  const [ids, setIds] = useState<number[]>([])
+  const needle = q.trim().toLowerCase().replace(/^@/, '')
+  const found = sponsors.filter((s) => !needle || s.title.toLowerCase().includes(needle) || s.link.toLowerCase().includes(needle))
+
+  return (
+    <div className="space-y-3">
+      <input
+        className={inputClass}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && onBack()}
+        placeholder="Homiy nomi bo'yicha qidirish…"
+        autoFocus
+      />
+      {found.length ? (
+        <div className="max-h-72 space-y-0.5 overflow-y-auto">
+          {found.map((s) => (
+            <label key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+              <input
+                type="checkbox"
+                className="accent-brand-500"
+                checked={ids.includes(s.id)}
+                onChange={(e) => setIds((cur) => (e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id)))}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm">{s.title}</div>
+                <div className="truncate text-xs text-zinc-400">{s.link}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="py-2 text-sm text-zinc-500">Hech narsa topilmadi.</p>
+      )}
+      <div className="flex gap-2">
+        <Button variant="ghost" onClick={onBack}>
+          ← Orqaga
+        </Button>
+        <Button className="flex-1" disabled={!ids.length} onClick={() => onChoose(ids)}>
+          Qo'shish{ids.length ? ` (${ids.length})` : ''}
+        </Button>
       </div>
     </div>
   )

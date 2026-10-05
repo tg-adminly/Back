@@ -29,6 +29,8 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 1. Owner rozigrish yaratadi: o'rinlar soni, **har bir o'rin uchun alohida sovrin** (pul summasi yoki buyum nomi;
    «Qolganlariga ham» tugmasi bilan bir xil qilish mumkin), tugash vaqti, homiy kanallar ro'yxati.
 2. Bot har bir homiy kanalda admin bo'lishi shart (obunani tekshirish uchun) — bot buni oldindan tekshiradi.
+   Yopiq kanal: Bot API `t.me/+...` linkdan kanalni topa olmaydi, shuning uchun bot admin qilingan kanallarni
+   (`my_chat_member`) eslab qoladi. Panelda «Yopiq kanal» → ro'yxatdan tanlash + taklif linkini qo'yish. ID bilan qo'shish ham qoladi.
 3. Kanalga post chiqadi: homiy linklari + **"Qatnashish (N)"** tugmasi (N — ishtirokchilar soni, har ~5 soniyada yangilanadi).
 4. User tugmani **postning o'zida** bosadi (RandomGodBot kabi — botga kirish shart emas), bot obunani tekshirib popup chiqaradi:
    - hammasiga obuna → ishtirokchi bo'ladi, popupda raqami;

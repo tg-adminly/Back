@@ -9,6 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from tgagent.agents.giveaway.handlers import admin, editor, participant
 from tgagent.agents.giveaway.jobs import draw_loop
+from tgagent.channels.telegram_bot import tracking
 from tgagent.channels.telegram_bot.chats import ChatRef, bot_is_admin, chat_link
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
@@ -48,6 +49,7 @@ async def main() -> None:
     logins = LoginRequests()
     dp = Dispatcher(storage=MemoryStorage())
     # Tartib muhim: panelga kirish → egasi → muharrir → qolganlar (ishtirokchilar)
+    dp.include_router(tracking.build_router())  # bot admin bo'lgan kanallarni eslab qoladi
     dp.include_router(bot_login.build_router(settings, logins))
     dp.include_router(admin.build_router(settings))
     dp.include_router(editor.build_router(settings))

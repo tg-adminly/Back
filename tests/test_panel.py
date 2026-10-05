@@ -160,3 +160,29 @@ def test_sponsor_ref():
     assert sponsor_ref("https://t.me/homiy_kanal") == "@homiy_kanal"
     assert sponsor_ref("-1001234") == -1001234
     assert sponsor_ref("@abc") == "@abc"
+
+
+async def test_bot_chats_lists_admin_channels_not_yet_sponsors(env):
+    from tgagent.channels.telegram_bot import tracking
+
+    await login(env)
+    async with env.sm() as s:
+        await tracking.remember_chat(s, -1005, "Homiy kanal", "homiy")
+        await tracking.remember_chat(s, -1007, "Yopiq kanal", None)
+        await tracking.remember_chat(s, -100, "Bizning kanal", None)  # asosiy kanal ko'rinmaydi
+    r = await env.client.get("/api/bot-chats")
+    assert [c["chat_id"] for c in r.json()] == [-1005, -1007]
+
+    await env.client.post("/api/sponsors", json={"ref": "-1005"}, headers=H)
+    assert [c["chat_id"] for c in (await env.client.get("/api/bot-chats")).json()] == [-1007]
+
+    async with env.sm() as s:
+        await tracking.forget_chat(s, -1007)  # bot adminlikdan olindi
+    assert (await env.client.get("/api/bot-chats")).json() == []
+
+
+async def test_invite_link_in_ref_gives_clear_error(env):
+    await login(env)
+    r = await env.client.post("/api/sponsors", json={"ref": "https://t.me/+l6U_QEwKs91jZDhi"}, headers=H)
+    assert r.status_code == 400
+    assert "Yopiq kanal" in r.json()["detail"]
