@@ -47,8 +47,9 @@ def sponsors_done() -> InlineKeyboardMarkup:
     return b.as_markup()
 
 
-def publish_confirm() -> InlineKeyboardMarkup:
+def publish_confirm(auto_draw: bool) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
+    b.button(text=texts.BTN_AUTO_ON if auto_draw else texts.BTN_AUTO_OFF, callback_data=WizardCB(action="toggle_auto"))
     b.button(text=texts.BTN_PUBLISH, callback_data=WizardCB(action="publish"))
     b.button(text=texts.BTN_CANCEL, callback_data=WizardCB(action="cancel"))
     b.adjust(1)

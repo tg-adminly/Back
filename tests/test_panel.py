@@ -42,6 +42,9 @@ class FakeBot:
     async def send_photo(self, chat_id, photo, caption=None, **kw):
         self.sent.append(("photo", chat_id, caption))
 
+    async def edit_message_text(self, text, chat_id=None, message_id=None, **kw):
+        self.sent.append(("edit", chat_id, text))
+
 
 @pytest.fixture
 async def env(tmp_path):
@@ -258,3 +261,50 @@ async def test_live_draw_flow(env):
     assert g["status"] == "finished" and [w["place"] for w in g["winners"]] == [1, 2]
     pub = (await env.client.get(f"/api/public/giveaways/{gid}")).json()
     assert [w["place"] for w in pub["winners"]] == [1, 2] and "user_id" not in pub["winners"][0]
+
+
+async def test_auto_draw_and_editor_runs_live(env):
+    """Avtomatik: bot o'zi aniqlab e'lon qiladi. Aks holda — vaqt eslatma, o'yinni muharrir ham o'tkaza oladi."""
+    from tgagent.agents.giveaway import jobs, service
+
+    await login(env)
+    body = {"title": "Avto", "description": "Y", "prizes": ["100k"], "ends_at": future()}
+    auto_id = (await env.client.post("/api/giveaways", json={**body, "auto_draw": True}, headers=H)).json()["id"]
+    assert "avtomatik aniqlanadi" in env.bot.sent[-1][2]
+    live_id = (await env.client.post("/api/giveaways", json=body, headers=H)).json()["id"]
+    assert "jonli efirda" in env.bot.sent[-1][2]
+
+    # Tahrirlash: usul almashsa kanal posti ham yangilanadi
+    r = await env.client.patch(f"/api/giveaways/{live_id}", json={"auto_draw": True}, headers=H)
+    assert r.json() == {"ok": True, "warning": None}
+    assert env.bot.sent[-1][0] == "edit" and "avtomatik aniqlanadi" in env.bot.sent[-1][2]
+    r = await env.client.patch(f"/api/giveaways/{live_id}", json={"auto_draw": False, "ends_at": "2020-01-01T10:00"}, headers=H)
+    assert r.status_code == 422  # o'tgan vaqt
+    await env.client.patch(f"/api/giveaways/{live_id}", json={"auto_draw": False}, headers=H)
+    assert (await env.client.get(f"/api/giveaways/{live_id}")).json()["auto_draw"] is False
+
+    async with env.sm() as s:
+        for gid in (auto_id, live_id):
+            for uid, name in [(11, "Ali"), (12, "Vali")]:
+                await service.add_participant(s, gid, uid, name, None)
+            await service.finish_now(s, gid)
+
+    # Avtomatik: yopilishi bilan g'olib kanalga chiqadi
+    sent = len(env.bot.sent)
+    await jobs.close_participation(env.bot, env.sm, env.settings, env.main_chat, auto_id)
+    posts = [m for m in env.bot.sent[sent:] if m[1] == -100]
+    assert len(posts) == 1 and "G'oliblar:" in posts[0][2] and "Jonli efirda" not in posts[0][2]
+    assert (await env.client.get(f"/api/giveaways/{auto_id}")).json()["status"] == "finished"
+
+    # Jonli: kanalga hech narsa chiqmaydi, egasi va muharrirga eslatma
+    sent = len(env.bot.sent)
+    await jobs.close_participation(env.bot, env.sm, env.settings, env.main_chat, live_id)
+    assert {m[1] for m in env.bot.sent[sent:]} == {OWNER, EDITOR}
+
+    # Muharrir jonli o'yinni o'tkazadi, lekin rozigrish yarata/o'zgartira olmaydi
+    await login(env, EDITOR)
+    assert (await env.client.post("/api/giveaways", json=body, headers=H)).status_code == 403
+    assert (await env.client.patch(f"/api/giveaways/{live_id}", json={"auto_draw": True}, headers=H)).status_code == 403
+    picks = (await env.client.post(f"/api/giveaways/{live_id}/live/next", headers=H)).json()["picks"]
+    assert picks[-1]["place"] == 1
+    assert (await env.client.post(f"/api/giveaways/{live_id}/live/announce", headers=H)).json() == {"ok": True}

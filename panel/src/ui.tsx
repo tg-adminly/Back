@@ -25,6 +25,13 @@ export function formatDate(iso: string, tz: string) {
   return `${parts.day}.${parts.month}.${parts.year} ${parts.hour}:${parts.minute}`
 }
 
+/** ISO vaqt → datetime-local maydoni uchun mahalliy qiymat ("2026-10-15T20:00") */
+export function toLocalInput(iso: string, tz: string) {
+  const [date, time] = formatDate(iso, tz).split(' ')
+  const [day, month, year] = date.split('.')
+  return `${year}-${month}-${day}T${time}`
+}
+
 export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(' ')
 }
@@ -213,3 +220,44 @@ export function CopyButton({ value }: { value: string }) {
 export function userLabel(name: string, username: string | null) {
   return username ? `${name} (@${username})` : name
 }
+
+const DRAW_MODES = [
+  {
+    auto: false,
+    title: "🎥 Jonli o'yin",
+    text: "Vaqt — eslatma. Shu vaqtda qatnashish yopiladi, siz yoki muharrir efirda g'olibni aniqlaysiz.",
+  },
+  {
+    auto: true,
+    title: '🤖 Avtomatik',
+    text: "Vaqti kelganda bot g'oliblarni o'zi aniqlab, kanalga e'lon qiladi.",
+  },
+]
+
+/** G'olibni aniqlash usuli: jonli o'yin yoki bot avtomatik */
+export function DrawModePicker({ value, onChange }: { value: boolean; onChange: (auto: boolean) => void }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2" role="radiogroup">
+      {DRAW_MODES.map((m) => (
+        <button
+          key={m.title}
+          type="button"
+          role="radio"
+          aria-checked={value === m.auto}
+          onClick={() => onChange(m.auto)}
+          className={cx(
+            'rounded-xl p-3 text-left ring-1 transition',
+            value === m.auto
+              ? 'bg-brand-50 ring-2 ring-brand-500 dark:bg-brand-700/20'
+              : 'ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800',
+          )}
+        >
+          <div className="text-sm font-medium">{m.title}</div>
+          <div className="mt-0.5 text-xs text-zinc-500">{m.text}</div>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export const endsAtLabel = (auto: boolean) => (auto ? 'Yakunlanish vaqti (Toshkent vaqti)' : "O'yin vaqti (Toshkent vaqti)")

@@ -82,6 +82,8 @@ async def owner(staff: Annotated[auth.Staff, Depends(current_staff)]) -> auth.St
 
 D = Annotated[Deps, Depends(deps)]
 Owner = Annotated[auth.Staff, Depends(owner)]
+# Egasi yoki muharrir: rozigrishlarni ko'rish va jonli o'yinni o'tkazish
+Staff = Annotated[auth.Staff, Depends(current_staff)]
 
 router = APIRouter(prefix="/api")
 
@@ -158,6 +160,7 @@ def giveaway_out(d: Deps, g: Giveaway, participants: int) -> dict:
         "title": g.title,
         "description": g.description,
         "status": g.status,
+        "auto_draw": g.auto_draw,
         "prizes": [prize_out(p) for p in g.prizes],
         "winners_count": g.winners_count,
         "participants": participants,
@@ -217,6 +220,12 @@ class GiveawayIn(BaseModel):
     prizes: list[str] = Field(min_length=1, max_length=100)  # har o'rin uchun: "500 ming", "iPhone 15" ...
     ends_at: str  # mahalliy vaqt, "2026-10-15T20:00"
     sponsor_ids: list[int] = []
+    auto_draw: bool = False  # True — vaqtida bot o'zi aniqlaydi; False — jonli o'yin
+
+
+class GiveawayPatch(BaseModel):
+    ends_at: str | None = None  # mahalliy vaqt
+    auto_draw: bool | None = None
 
 
 @dataclass
@@ -267,6 +276,7 @@ async def giveaway_preview(body: GiveawayIn, d: D, _: Owner):
             description=body.description.strip(),
             prizes_data=[p.to_dict() for p in parsed.prizes],
             ends_at=parsed.ends_at,
+            auto_draw=body.auto_draw,
         )
         html_text = texts.giveaway_post(draft, d.settings.tz, [sp.title for sp in sponsors])
     return {
@@ -292,6 +302,7 @@ async def giveaway_create(body: GiveawayIn, d: D, _: Owner):
             prizes=parsed.prizes,
             ends_at=parsed.ends_at,
             sponsor_ids=[sp.id for sp in sponsors],
+            auto_draw=body.auto_draw,
         )
     except actions.ActionError as e:
         raise HTTPException(400, plain(e.message)) from None
@@ -299,7 +310,7 @@ async def giveaway_create(body: GiveawayIn, d: D, _: Owner):
 
 
 @router.get("/giveaways")
-async def giveaway_list(d: D, _: Owner, status: GiveawayStatus | None = None):
+async def giveaway_list(d: D, _: Staff, status: GiveawayStatus | None = None):
     async with d.sm() as s:
         items = await service.list_giveaways(s, status)
         counts = await service.participant_counts(s)
@@ -307,7 +318,7 @@ async def giveaway_list(d: D, _: Owner, status: GiveawayStatus | None = None):
 
 
 @router.get("/giveaways/{gid}")
-async def giveaway_detail(gid: int, d: D, _: Owner):
+async def giveaway_detail(gid: int, d: D, _: Staff):
     async with d.sm() as s:
         g = await s.get(Giveaway, gid)
         if g is None:
@@ -318,7 +329,7 @@ async def giveaway_detail(gid: int, d: D, _: Owner):
 
 
 @router.get("/giveaways/{gid}/participants")
-async def giveaway_participants(gid: int, d: D, _: Owner, q: str = "", offset: int = 0, limit: int = 50):
+async def giveaway_participants(gid: int, d: D, _: Staff, q: str = "", offset: int = 0, limit: int = 50):
     limit = min(max(limit, 1), 200)
     query = select(Participant).where(Participant.giveaway_id == gid)
     if q.strip():
@@ -341,8 +352,26 @@ async def giveaway_participants(gid: int, d: D, _: Owner, q: str = "", offset: i
     }
 
 
+@router.patch("/giveaways/{gid}")
+async def giveaway_update(gid: int, body: GiveawayPatch, d: D, _: Owner):
+    """Faol rozigrish: vaqtini va g'olibni aniqlash usulini o'zgartirish (kanal posti ham yangilanadi)."""
+    ends_at = None
+    if body.ends_at is not None:
+        try:
+            ends_at = datetime.fromisoformat(body.ends_at).replace(tzinfo=d.settings.tz)
+        except ValueError:
+            ends_at = None
+        if ends_at is None or ends_at <= utcnow():
+            raise HTTPException(422, {"errors": {"ends_at": ptexts.API_BAD_ENDS_AT}})
+    try:
+        warning = await actions.update_giveaway(d.bot, d.settings, d.sm, gid, ends_at=ends_at, auto_draw=body.auto_draw)
+    except actions.ActionError as e:
+        raise HTTPException(400, plain(e.message)) from None
+    return {"ok": True, "warning": plain(warning) if warning else None}
+
+
 @router.post("/giveaways/{gid}/finish")
-async def giveaway_finish(gid: int, d: D, _: Owner):
+async def giveaway_finish(gid: int, d: D, _: Staff):
     async with d.sm() as s:
         if not await service.finish_now(s, gid):
             raise HTTPException(400, plain(texts.NOT_ACTIVE))
@@ -366,7 +395,7 @@ def pick_out(p: DrawPick, misses: dict[int, list[str]]) -> dict:
 
 
 @router.get("/giveaways/{gid}/live")
-async def live_state(gid: int, d: D, _: Owner):
+async def live_state(gid: int, d: D, _: Staff):
     async with d.sm() as s:
         g = await s.get(Giveaway, gid)
         if g is None:
@@ -397,7 +426,7 @@ _check_tasks: set[asyncio.Task] = set()
 
 
 @router.post("/giveaways/{gid}/live/check")
-async def live_check(gid: int, d: D, _: Owner):
+async def live_check(gid: int, d: D, _: Staff):
     """Obunani qayta tekshirish (fonda). Natijasi /live da: check — jarayon, excluded — chiqib ketganlar."""
     if gid in jobs.checks:
         raise HTTPException(400, plain(texts.CHECK_RUNNING))
@@ -425,7 +454,7 @@ async def live_check(gid: int, d: D, _: Owner):
 
 
 @router.post("/giveaways/{gid}/live/next")
-async def live_next(gid: int, d: D, _: Owner):
+async def live_next(gid: int, d: D, _: Staff):
     try:
         picks = await actions.reveal_next(d.bot, d.sm, d.main_chat, gid)
     except actions.ActionError as e:
@@ -436,7 +465,7 @@ async def live_next(gid: int, d: D, _: Owner):
 
 
 @router.post("/giveaways/{gid}/live/announce")
-async def live_announce(gid: int, d: D, _: Owner):
+async def live_announce(gid: int, d: D, _: Staff):
     try:
         await actions.announce_results(d.bot, d.settings, d.sm, gid)
     except actions.ActionError as e:

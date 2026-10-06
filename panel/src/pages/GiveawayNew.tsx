@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, api, type Prize, type Sponsor } from '../api'
-import { Button, Card, ErrorBox, Field, Modal, PageHeader, inputClass } from '../ui'
+import { Button, Card, DrawModePicker, ErrorBox, Field, Modal, PageHeader, endsAtLabel, inputClass } from '../ui'
 import { SponsorAddForm } from './Sponsors'
 
 interface Preview {
@@ -26,12 +26,13 @@ export default function GiveawayNew() {
   const [prizes, setPrizes] = useState<string[]>([''])
   const [endsAt, setEndsAt] = useState(defaultEndsAt)
   const [sponsorIds, setSponsorIds] = useState<number[]>([])
+  const [autoDraw, setAutoDraw] = useState(false)
   const [addingSponsor, setAddingSponsor] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [confirming, setConfirming] = useState(false)
 
   const sponsors = useQuery({ queryKey: ['sponsors'], queryFn: () => api.get<Sponsor[]>('/sponsors') })
-  const body = { title, description, prizes, ends_at: endsAt, sponsor_ids: sponsorIds }
+  const body = { title, description, prizes, ends_at: endsAt, sponsor_ids: sponsorIds, auto_draw: autoDraw }
   const chosen = (sponsors.data ?? []).filter((s) => sponsorIds.includes(s.id))
   const bodyKey = JSON.stringify(body)
 
@@ -77,7 +78,11 @@ export default function GiveawayNew() {
             <Field label="Post matni" hint="Qisqa ta'rif, qo'shimcha shartlar" error={err('description', description)}>
               <textarea className={inputClass} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={3000} />
             </Field>
-            <Field label="Yakunlanish vaqti (Toshkent vaqti)" error={serverErrors.ends_at ?? preview?.errors.ends_at}>
+            <div>
+              <div className="mb-1 text-sm font-medium">G'olibni kim aniqlaydi</div>
+              <DrawModePicker value={autoDraw} onChange={setAutoDraw} />
+            </div>
+            <Field label={endsAtLabel(autoDraw)} error={serverErrors.ends_at ?? preview?.errors.ends_at}>
               <input type="datetime-local" className={inputClass} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
             </Field>
           </Card>
@@ -184,7 +189,7 @@ export default function GiveawayNew() {
       )}
       {confirming && (
         <Modal title="E'lon qilaymi?" onClose={() => setConfirming(false)}>
-          <p className="mb-5 text-sm">Post darhol kanalga chiqadi. Keyin sovrin va shartlarni o'zgartirib bo'lmaydi.</p>
+          <p className="mb-5 text-sm">Post darhol kanalga chiqadi. Keyin sovrin va shartlarni o'zgartirib bo'lmaydi (vaqt va g'olibni aniqlash usulini — mumkin).</p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirming(false)}>
               Orqaga

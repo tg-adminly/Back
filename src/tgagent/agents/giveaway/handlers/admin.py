@@ -161,7 +161,19 @@ def build_router(settings: Settings) -> Router:
         await state.set_state(CreateGiveaway.confirm)
         await cb.message.answer(texts.PREVIEW_HEADER)
         await cb.message.answer(
-            texts.giveaway_post(preview, settings.tz, data["sponsor_titles"]), reply_markup=kb.publish_confirm()
+            texts.giveaway_post(preview, settings.tz, data["sponsor_titles"]),
+            reply_markup=kb.publish_confirm(preview.auto_draw),
+        )
+        await cb.answer()
+
+    @router.callback_query(CreateGiveaway.confirm, kb.WizardCB.filter(F.action == "toggle_auto"))
+    async def toggle_auto(cb: CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        await state.update_data(auto_draw=not data.get("auto_draw", False))
+        preview = _draft_giveaway(await state.get_data())
+        await cb.message.edit_text(
+            texts.giveaway_post(preview, settings.tz, data["sponsor_titles"]),
+            reply_markup=kb.publish_confirm(preview.auto_draw),
         )
         await cb.answer()
 
@@ -187,6 +199,7 @@ def build_router(settings: Settings) -> Router:
                 prizes=draft.prizes,
                 ends_at=draft.ends_at,
                 sponsor_ids=data["sponsor_ids"],
+                auto_draw=draft.auto_draw,
             )
         except actions.ActionError as e:
             await cb.message.answer(e.message)
@@ -211,9 +224,15 @@ def build_router(settings: Settings) -> Router:
     @router.callback_query(kb.ManageCB.filter())
     async def manage(cb: CallbackQuery, callback_data: kb.ManageCB, sm: async_sessionmaker):
         gid = callback_data.giveaway_id
+        async with sm() as s:
+            g = await s.get(Giveaway, gid)
+        auto = bool(g and g.auto_draw)
         if not callback_data.confirmed:
-            prompt = texts.CONFIRM_FINISH if callback_data.action == "finish" else texts.CONFIRM_CANCEL
-            await cb.message.answer(prompt.format(id=gid), reply_markup=kb.manage_confirm(callback_data.action, gid))
+            if callback_data.action == "finish":
+                prompt = texts.CONFIRM_FINISH.format(id=gid, next=texts.FINISH_NEXT_AUTO if auto else texts.FINISH_NEXT_LIVE)
+            else:
+                prompt = texts.CONFIRM_CANCEL.format(id=gid)
+            await cb.message.answer(prompt, reply_markup=kb.manage_confirm(callback_data.action, gid))
             await cb.answer()
             return
         async with sm() as s:
@@ -225,7 +244,9 @@ def build_router(settings: Settings) -> Router:
             await cb.answer(texts.NOT_ACTIVE, show_alert=True)
             return
         await cb.message.edit_reply_markup(reply_markup=None)
-        await cb.message.answer(reply.format(id=gid))
+        await cb.message.answer(
+            reply.format(id=gid, next=texts.FINISH_SCHEDULED_AUTO if auto else texts.FINISH_SCHEDULED_LIVE)
+        )
         await cb.answer()
 
     # --- To'lovlar ---
@@ -271,4 +292,5 @@ def _draft_giveaway(data: dict) -> Giveaway:
         description=data["description"],
         prizes_data=data["prizes"],
         ends_at=datetime.fromisoformat(data["ends_at"]),
+        auto_draw=data.get("auto_draw", False),
     )

@@ -24,9 +24,11 @@ export default function Giveaways() {
       <PageHeader
         title="Rozigrishlar"
         action={
-          <Link to="/giveaways/new">
-            <Button>+ Yangi rozigrish</Button>
-          </Link>
+          me.role === 'owner' && (
+            <Link to="/giveaways/new">
+              <Button>+ Yangi rozigrish</Button>
+            </Link>
+          )
         }
       />
       <div className="mb-4 flex gap-1 overflow-x-auto">
@@ -55,7 +57,7 @@ export default function Giveaways() {
                   <span className="text-zinc-400">#{g.id}</span> {g.title}
                 </div>
                 <div className="text-xs text-zinc-500">
-                  {g.winners_count} o'rin · 👥 {g.participants} · ⏰ {formatDate(g.ends_at, me.timezone)}
+                  {g.winners_count} o'rin · 👥 {g.participants} · {g.auto_draw ? '🤖' : '🎥'} {formatDate(g.ends_at, me.timezone)}
                 </div>
               </div>
               <GiveawayBadge status={g.status} />

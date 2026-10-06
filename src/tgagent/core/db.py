@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import DateTime, TypeDecorator
+from sqlalchemy import DateTime, TypeDecorator, inspect
+from sqlalchemy.engine import Connection
+from sqlalchemy.schema import CreateColumn
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -51,3 +53,23 @@ async def init_db(engine: AsyncEngine) -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_add_missing_columns)
+
+
+def _add_missing_columns(conn: Connection) -> None:
+    """create_all mavjud jadvalga yangi ustun qo'shmaydi — shuni to'ldiradi (Alembic kelguncha).
+
+    Faqat server_default'li yoki NULL bo'la oladigan ustunlar (eski qatorlar uchun qiymat bo'lishi kerak).
+    """
+    insp = inspect(conn)
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table.name)}
+        for col in table.columns:
+            if col.name in existing:
+                continue
+            if col.server_default is None and not col.nullable:
+                raise RuntimeError(f"{table.name}.{col.name}: server_default kerak (eski qatorlar uchun)")
+            ddl = CreateColumn(col).compile(dialect=conn.dialect)
+            conn.exec_driver_sql(f"ALTER TABLE {table.name} ADD COLUMN {ddl}")

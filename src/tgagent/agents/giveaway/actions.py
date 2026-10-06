@@ -68,6 +68,7 @@ async def publish_giveaway(
     prizes: list[Prize],
     ends_at: datetime,
     sponsor_ids: list[int],
+    auto_draw: bool = False,
 ) -> Giveaway:
     """Rozigrishni bazaga yozadi va asosiy kanalga post chiqaradi."""
     async with sm() as s:
@@ -79,6 +80,7 @@ async def publish_giveaway(
             ends_at=ends_at,
             chat_id=settings.main_chat_id,
             sponsor_ids=sponsor_ids,
+            auto_draw=auto_draw,
         )
         sponsors = [ChatRef(sp.chat_id, sp.title, sp.link) for sp in g.sponsors]
         try:
@@ -94,6 +96,58 @@ async def publish_giveaway(
         g.message_id = post.message_id
         await s.commit()
     return g
+
+
+async def update_giveaway(
+    bot: Bot,
+    settings: Settings,
+    sm: async_sessionmaker,
+    giveaway_id: int,
+    *,
+    ends_at: datetime | None = None,
+    auto_draw: bool | None = None,
+) -> str | None:
+    """Faol rozigrishning vaqtini / aniqlash usulini o'zgartiradi va kanaldagi postni yangilaydi.
+
+    Post yangilanmasa ham sozlama saqlanadi — ogohlantirish matnini qaytaradi.
+    """
+    async with sm() as s:
+        g = await s.get(Giveaway, giveaway_id)
+        if g is None or g.status != GiveawayStatus.ACTIVE:
+            raise ActionError(texts.NOT_EDITABLE)
+        if ends_at is not None:
+            g.ends_at = ends_at
+        if auto_draw is not None:
+            g.auto_draw = auto_draw
+        await s.commit()
+        count = await service.participants_count(s, g.id)
+    if not g.message_id:
+        return None
+    sponsors = [ChatRef(sp.chat_id, sp.title, sp.link) for sp in g.sponsors]
+    try:
+        await bot.edit_message_text(
+            texts.giveaway_post(g, settings.tz, [sp.title for sp in sponsors]),
+            chat_id=g.chat_id,
+            message_id=g.message_id,
+            reply_markup=kb.giveaway_post(sponsors, g.id, count, kb.participants_url(settings.panel_url, g.id)),
+        )
+    except TelegramAPIError as e:
+        if "not modified" in str(e):
+            return None
+        return texts.POST_EDIT_FAILED.format(error=escape(str(e)))
+    return None
+
+
+async def run_auto_draw(bot: Bot, settings: Settings, sm: async_sessionmaker, main_chat: ChatRef, giveaway_id: int) -> None:
+    """Avtomatik rejim: jonli o'yindagi qadamlarni o'zi bajaradi — hamma o'rinlarni chiqarib, kanalga e'lon qiladi."""
+    while True:
+        try:
+            await reveal_next(bot, sm, main_chat, giveaway_id)
+        except ActionError as e:
+            if e.message in (texts.ALL_PLACES_FILLED, texts.NO_MORE_CANDIDATES):
+                break
+            raise
+    await announce_results(bot, settings, sm, giveaway_id)
 
 
 async def deliver_prize(bot: Bot, sm: async_sessionmaker, winner_id: int, send_proof: Callable[[int], Awaitable]) -> bool:

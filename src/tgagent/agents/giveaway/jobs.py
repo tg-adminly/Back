@@ -1,6 +1,6 @@
-"""Fon vazifa: vaqti kelgan rozigrishlarda qatnashishni yopish va obunani qayta tekshirish.
+"""Fon vazifa: vaqti kelgan rozigrishlarda qatnashishni yopish, obunani qayta tekshirish va (avtomatik rejimda) g'olibni aniqlash.
 
-G'oliblarni bot o'zi aniqlamaydi — egasi panelda jonli o'yinni boshlaydi (actions.reveal_next).
+Jonli rejimda bot g'olib aniqlamaydi — egasi yoki muharrir panelda jonli o'yin o'tkazadi (actions.reveal_next).
 """
 
 import asyncio
@@ -52,6 +52,11 @@ def required_chats(g: Giveaway, main_chat: ChatRef) -> list[ChatRef]:
     return chats
 
 
+def staff_ids(settings: Settings) -> list[int]:
+    """Egasi + muharrirlar (takrorlarsiz) — jonli o'yinni ular o'tkazadi."""
+    return list(dict.fromkeys([*settings.owner_ids, *settings.editor_ids]))
+
+
 def live_url(settings: Settings, giveaway_id: int) -> str:
     return f"{settings.panel_url.rstrip('/')}/giveaways/{giveaway_id}/live"
 
@@ -86,7 +91,20 @@ async def close_participation(bot: Bot, sm: async_sessionmaker, settings: Settin
         except Exception:
             log.exception("Rozigrish #%s: obunani tekshirib bo'lmadi", giveaway_id)
             excluded = None
-        await notify_users(bot, settings.owner_ids, texts.live_ready(g, len(parts), excluded, live_url(settings, g.id)))
+        url = live_url(settings, g.id)
+        if g.auto_draw:
+            # actions jobs'ni import qiladi — aylanma importdan qochish uchun shu yerda
+            from tgagent.agents.giveaway.actions import run_auto_draw
+
+            try:
+                await run_auto_draw(bot, settings, sm, main_chat, g.id)
+            except Exception as e:
+                log.exception("Rozigrish #%s: avtomatik aniqlab bo'lmadi", giveaway_id)
+                error = getattr(e, "message", None) or escape(str(e))
+                await notify_users(bot, staff_ids(settings), texts.auto_draw_failed(g, error, url))
+            return
+        # Vaqt — eslatma: o'yinni egasi yoki muharrir jonli o'tkazadi
+        await notify_users(bot, staff_ids(settings), texts.live_ready(g, len(parts), excluded, url))
         return
     reply = ReplyParameters(message_id=g.message_id, allow_sending_without_reply=True) if g.message_id else None
     try:

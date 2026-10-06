@@ -18,6 +18,8 @@ const NAV = [
   { to: '/payouts', label: "To'lovlar", icon: '💳' },
   { to: '/sponsors', label: 'Homiylar', icon: '📣' },
 ]
+// Muharrir: rozigrishlarni ko'radi va jonli o'yinni o'tkazadi (to'lov, homiy, yangi rozigrish — faqat egasi)
+const EDITOR_NAV = [{ to: '/giveaways', label: 'Rozigrishlar', icon: '🎁', end: false }]
 const SOON = [
   { label: 'CRM (reklama)', icon: '🤝' },
   { label: 'AI suhbatlar', icon: '💬' },
@@ -49,7 +51,7 @@ function Private() {
     <MeContext.Provider value={me.data}>
       <Routes>
         {/* Jonli o'yin: menyusiz, to'liq ekran (efirda ulashiladi) */}
-        <Route path="/giveaways/:id/live" element={me.data.role === 'owner' ? <LiveDraw /> : <Navigate to="/" replace />} />
+        <Route path="/giveaways/:id/live" element={<LiveDraw />} />
         <Route path="*" element={<Shell me={me.data} />} />
       </Routes>
     </MeContext.Provider>
@@ -63,6 +65,7 @@ function Shell({ me }: { me: Me }) {
     qc.clear()
     window.location.href = '/'
   }
+  const nav = me.role === 'owner' ? NAV : EDITOR_NAV
   const navClass = ({ isActive }: { isActive: boolean }) =>
     cx(
       'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium',
@@ -77,16 +80,14 @@ function Shell({ me }: { me: Me }) {
           <div className="text-base font-semibold">🎀 {me.channel.title}</div>
           <div className="text-xs text-zinc-500">Boshqaruv paneli</div>
         </div>
-        {me.role === 'owner' && (
-          <nav className="space-y-1">
-            {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
-                <span>{n.icon}</span>
-                {n.label}
-              </NavLink>
-            ))}
-          </nav>
-        )}
+        <nav className="space-y-1">
+          {nav.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
+              <span>{n.icon}</span>
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
         <div className="mt-6 space-y-1">
           <div className="px-3 text-xs font-medium tracking-wide text-zinc-400 uppercase">Tez orada</div>
           {SOON.map((n) => (
@@ -126,9 +127,11 @@ function Shell({ me }: { me: Me }) {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (
-            <div className="py-16 text-center text-sm text-zinc-500">
-              📝 Kontent bo'limi (post qoralamalari, uslub qo'llanma) tez orada shu yerda paydo bo'ladi.
-            </div>
+            <Routes>
+              <Route path="/giveaways" element={<Giveaways />} />
+              <Route path="/giveaways/:id" element={<GiveawayView />} />
+              <Route path="*" element={<Navigate to="/giveaways" replace />} />
+            </Routes>
           )}
         </main>
 

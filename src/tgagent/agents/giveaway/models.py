@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import JSON, BigInteger, Column, ForeignKey, String, Table, Text, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Column, ForeignKey, String, Table, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from tgagent.core.db import Base, UTCDateTime, utcnow
@@ -80,6 +80,9 @@ class Giveaway(Base):
     prizes_data: Mapped[list[dict]] = mapped_column(JSON)
     ends_at: Mapped[datetime] = mapped_column(UTCDateTime)
     status: Mapped[GiveawayStatus] = mapped_column(String(16), default=GiveawayStatus.ACTIVE)
+    # True — vaqti kelganda bot g'oliblarni o'zi aniqlab kanalga tashlaydi.
+    # False — vaqt faqat eslatma: egasi/muharrir panelda jonli o'yin o'tkazadi
+    auto_draw: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     # Random manbasi (draw.rank). Hech qayerda e'lon qilinmaydi
     seed: Mapped[str] = mapped_column(String(64))

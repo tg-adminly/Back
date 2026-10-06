@@ -103,6 +103,9 @@ def sponsor_added(titles: list[str]) -> str:
 
 
 BTN_PUBLISH = "📢 E'lon qilish"
+# Bosilsa boshqasiga almashadi
+BTN_AUTO_OFF = "🔁 G'olib: 🎥 jonli o'yinda"
+BTN_AUTO_ON = "🔁 G'olib: 🤖 bot avtomatik"
 BTN_CANCEL = "❌ Bekor qilish"
 PREVIEW_HEADER = "👇 Post shunday ko'rinadi. E'lon qilaymi?"
 PUBLISHED = "✅ Rozigrish #{id} e'lon qilindi!"
@@ -130,7 +133,7 @@ def giveaway_post(g: Giveaway, tz: ZoneInfo, sponsor_titles: list[str]) -> str:
     lines += [
         f"{step}. Pastdagi «🎁 Qatnashish» tugmasini bosing",
         "",
-        "🎥 G'oliblar jonli efirda aniqlanadi!",
+        "🤖 G'oliblar shu vaqtda bot tomonidan avtomatik aniqlanadi!" if g.auto_draw else "🎥 G'oliblar jonli efirda aniqlanadi!",
     ]
     return "\n".join(lines)
 
@@ -149,9 +152,13 @@ NO_ACTIVE = "Faol rozigrish yo'q."
 BTN_FINISH_NOW = "⏹ Hozir yakunlash"
 BTN_CANCEL_GIVEAWAY = "🗑 Bekor qilish"
 BTN_YES = "Ha, tasdiqlayman"
-CONFIRM_FINISH = "Rozigrish #{id} da qatnashishni hozir yopaymi? G'oliblarni keyin panelda jonli o'yinda aniqlaysiz."
+CONFIRM_FINISH = "Rozigrish #{id} da qatnashishni hozir yopaymi? {next}"
+FINISH_NEXT_AUTO = "Bot g'oliblarni darhol o'zi aniqlab, kanalga e'lon qiladi."
+FINISH_NEXT_LIVE = "G'oliblarni keyin panelda jonli o'yinda aniqlaysiz."
 CONFIRM_CANCEL = "Rozigrish #{id} ni bekor qilaymi? G'olib aniqlanmaydi."
-FINISH_SCHEDULED = "⏳ Rozigrish #{id} da qatnashish 1 daqiqa ichida yopiladi. Keyin jonli o'yin uchun havola yuboraman."
+FINISH_SCHEDULED = "⏳ Rozigrish #{id} da qatnashish 1 daqiqa ichida yopiladi. {next}"
+FINISH_SCHEDULED_AUTO = "Keyin bot g'oliblarni o'zi aniqlab, kanalga e'lon qiladi."
+FINISH_SCHEDULED_LIVE = "Keyin jonli o'yin uchun havola yuboraman."
 GIVEAWAY_CANCELLED = "🗑 Rozigrish #{id} bekor qilindi."
 NOT_ACTIVE = "Bu rozigrish allaqachon faol emas."
 
@@ -161,8 +168,13 @@ def active_item(g: Giveaway, count: int, tz: ZoneInfo) -> str:
         f"<b>#{g.id} {escape(g.title)}</b>\n"
         f"👥 Ishtirokchilar: {count}\n"
         f"🏆 G'oliblar: {g.winners_count}\n"
-        f"⏰ Yakun: {local_time(g.ends_at, tz)}"
+        f"⏰ Yakun: {local_time(g.ends_at, tz)}\n"
+        f"{draw_mode(g)}"
     )
+
+
+def draw_mode(g: Giveaway) -> str:
+    return "🤖 G'olibni bot avtomatik aniqlaydi" if g.auto_draw else "🎥 G'olib jonli o'yinda aniqlanadi"
 
 
 # --- Qatnashish ---
@@ -198,7 +210,7 @@ def results_post(
     """winners: (o'rin, user_id, ism, raqam)."""
     lines = ["🏁 <b>Rozigrish yakunlandi!</b>", f"<b>{escape(g.title)}</b>", f"👥 Ishtirokchilar: {total}", ""]
     if winners:
-        lines.append("🏆 <b>Jonli efirda aniqlangan g'oliblar:</b>")
+        lines.append("🏆 <b>G'oliblar:</b>" if g.auto_draw else "🏆 <b>Jonli efirda aniqlangan g'oliblar:</b>")
         prizes = g.prizes
         lines += [
             f"{_MEDALS.get(place, '🏅')} {user_link(uid, name)} — #{num} — {prize_text(prizes[place - 1])}"
@@ -260,17 +272,27 @@ WINNER_DM_FAILED = (
 def live_ready(g: Giveaway, total: int, excluded: int | None, live_url: str) -> str:
     """excluded=None — obunani tekshirib bo'lmadi (panelda qayta tekshirish mumkin)."""
     if excluded is None:
-        check = "⚠️ Obunani tekshirib bo'lmadi — jonli o'yin sahifasida «Obunani tekshirish»ni bosing.\n\n"
+        check = "⚠️ Obunani tekshirib bo'lmadi — jonli o'yin sahifasida «Qayta tekshirish»ni bosing.\n\n"
     elif excluded:
         check = f"🔄 Obuna qayta tekshirildi: {excluded} kishi homiy kanaldan chiqib ketgan — o'yinda qatnashmaydi.\n\n"
     else:
         check = "🔄 Obuna qayta tekshirildi: hamma shartni bajargan ✅\n\n"
     return (
-        f"⏹ Rozigrish #{g.id} «{escape(g.title)}» da qatnashish yopildi. Ishtirokchilar: {total}.\n"
+        f"⏰ Rozigrish #{g.id} «{escape(g.title)}» vaqti keldi — qatnashish yopildi. Ishtirokchilar: {total}.\n"
         f"{check}"
         f"🎥 Jonli o'yinni boshlash (efirda ekranni ulashing):\n{live_url}"
     )
 
+
+def auto_draw_failed(g: Giveaway, error: str, live_url: str) -> str:
+    return (
+        f"⚠️ Rozigrish #{g.id} «{escape(g.title)}»: g'oliblarni avtomatik aniqlab bo'lmadi.\n{error}\n\n"
+        f"Jonli o'yin sahifasida qo'lda davom ettiring:\n{live_url}"
+    )
+
+
+POST_EDIT_FAILED = "Sozlama saqlandi, lekin kanaldagi postni yangilab bo'lmadi: {error}"
+NOT_EDITABLE = "Faqat faol rozigrishni o'zgartirish mumkin."
 
 # Jonli o'yin (panel) xatolari
 NOT_DRAWING = "Bu rozigrish jonli o'yin bosqichida emas."

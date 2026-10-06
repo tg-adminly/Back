@@ -1,19 +1,24 @@
 import { useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import { api, type GiveawayDetail, type Participant } from '../api'
+import { ApiError, api, type GiveawayDetail, type Participant } from '../api'
 import {
   Button,
   Card,
   ConfirmButton,
   CopyButton,
+  DrawModePicker,
   Empty,
   ErrorBox,
+  Field,
   GiveawayBadge,
   Loading,
+  Modal,
   WinnerBadge,
+  endsAtLabel,
   formatDate,
   inputClass,
+  toLocalInput,
   useMe,
   userLabel,
 } from '../ui'
@@ -22,6 +27,7 @@ export default function GiveawayView() {
   const { id } = useParams()
   const me = useMe()
   const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
   const g = useQuery({
     queryKey: ['giveaway', id],
     queryFn: () => api.get<GiveawayDetail>(`/giveaways/${id}`),
@@ -41,6 +47,7 @@ export default function GiveawayView() {
   if (g.error) return <ErrorBox error={g.error} />
   const d = g.data
   const publicUrl = `${window.location.origin}/p/${d.id}`
+  const isOwner = me.role === 'owner'
 
   return (
     <>
@@ -70,19 +77,35 @@ export default function GiveawayView() {
           )}
           {d.status === 'active' && (
             <>
-              <ConfirmButton question="Qatnashishni hozir yopaymi? 1 daqiqa ichida yopiladi, keyin g'oliblarni jonli o'yinda aniqlaysiz." onConfirm={() => action.mutate('finish')} pending={action.isPending}>
+              {isOwner && (
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                  ✏️ O'zgartirish
+                </Button>
+              )}
+              <ConfirmButton
+                question={
+                  d.auto_draw
+                    ? "Qatnashishni hozir yopaymi? 1 daqiqa ichida bot g'oliblarni o'zi aniqlab, kanalga e'lon qiladi."
+                    : "Qatnashishni hozir yopaymi? 1 daqiqa ichida yopiladi, keyin g'oliblarni jonli o'yinda aniqlaysiz."
+                }
+                onConfirm={() => action.mutate('finish')}
+                pending={action.isPending}
+              >
                 ⏹ Qatnashishni yopish
               </ConfirmButton>
-              <ConfirmButton variant="danger" question="Rozigrishni bekor qilaymi? G'olib aniqlanmaydi." onConfirm={() => action.mutate('cancel')} pending={action.isPending}>
-                Bekor qilish
-              </ConfirmButton>
+              {isOwner && (
+                <ConfirmButton variant="danger" question="Rozigrishni bekor qilaymi? G'olib aniqlanmaydi." onConfirm={() => action.mutate('cancel')} pending={action.isPending}>
+                  Bekor qilish
+                </ConfirmButton>
+              )}
             </>
           )}
         </div>
       </div>
       <ErrorBox error={action.error} />
+      {editing && <EditModal d={d} onClose={() => setEditing(false)} />}
 
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
           <div className="text-2xl font-semibold">{d.participants}</div>
           <div className="text-xs text-zinc-500">ishtirokchi</div>
@@ -93,7 +116,11 @@ export default function GiveawayView() {
         </Card>
         <Card>
           <div className="text-base font-semibold">{formatDate(d.ends_at, me.timezone)}</div>
-          <div className="text-xs text-zinc-500">{d.status === 'active' ? 'yakunlanadi' : 'yakun vaqti'}</div>
+          <div className="text-xs text-zinc-500">{d.auto_draw ? (d.status === 'active' ? 'yakunlanadi' : 'yakun vaqti') : "o'yin vaqti"}</div>
+        </Card>
+        <Card>
+          <div className="text-base font-semibold">{d.auto_draw ? '🤖 Avtomatik' : "🎥 Jonli o'yin"}</div>
+          <div className="text-xs text-zinc-500">g'olibni aniqlash</div>
         </Card>
       </div>
 
@@ -168,6 +195,59 @@ export default function GiveawayView() {
 
       <Participants giveawayId={d.id} total={d.participants} />
     </>
+  )
+}
+
+/** Faol rozigrish: vaqt va g'olibni aniqlash usuli (kanal posti ham yangilanadi) */
+function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
+  const me = useMe()
+  const qc = useQueryClient()
+  const [autoDraw, setAutoDraw] = useState(d.auto_draw)
+  const initialEndsAt = toLocalInput(d.ends_at, me.timezone)
+  const [endsAt, setEndsAt] = useState(initialEndsAt)
+  const save = useMutation({
+    // Vaqt o'zgarmagan bo'lsa yubormaymiz (tekshiruv faqat yangi vaqt uchun)
+    mutationFn: () =>
+      api.patch<{ warning: string | null }>(`/giveaways/${d.id}`, { auto_draw: autoDraw, ends_at: endsAt === initialEndsAt ? null : endsAt }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['giveaway', String(d.id)] })
+      qc.invalidateQueries({ queryKey: ['giveaways'] })
+      if (!r.warning) onClose()
+    },
+  })
+  const fieldErrors = save.error instanceof ApiError ? save.error.fields : {}
+
+  return (
+    <Modal title="Rozigrishni o'zgartirish" onClose={onClose}>
+      {save.data?.warning ? (
+        <>
+          <p className="mb-5 text-sm">⚠️ {save.data.warning}</p>
+          <div className="text-right">
+            <Button onClick={onClose}>Yopish</Button>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <div className="mb-1 text-sm font-medium">G'olibni kim aniqlaydi</div>
+            <DrawModePicker value={autoDraw} onChange={setAutoDraw} />
+          </div>
+          <Field label={endsAtLabel(autoDraw)} error={fieldErrors.ends_at}>
+            <input type="datetime-local" className={inputClass} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+          </Field>
+          <p className="text-xs text-zinc-500">Kanaldagi post ham yangilanadi.</p>
+          {!fieldErrors.ends_at && <ErrorBox error={save.error} />}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Bekor
+            </Button>
+            <Button disabled={save.isPending} onClick={() => save.mutate()}>
+              {save.isPending ? 'Saqlanmoqda…' : 'Saqlash'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
 

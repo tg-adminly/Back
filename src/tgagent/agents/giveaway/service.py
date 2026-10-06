@@ -43,6 +43,7 @@ async def create_giveaway(
     ends_at: datetime,
     chat_id: int,
     sponsor_ids: list[int],
+    auto_draw: bool = False,
 ) -> Giveaway:
     seed = draw.new_seed()
     sponsors = (await session.scalars(select(SponsorChannel).where(SponsorChannel.id.in_(sponsor_ids)))).all()
@@ -55,6 +56,7 @@ async def create_giveaway(
         commit_hash=draw.commit_of(seed),
         chat_id=chat_id,
         sponsors=list(sponsors),
+        auto_draw=auto_draw,
     )
     session.add(giveaway)
     await session.commit()

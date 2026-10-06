@@ -45,7 +45,7 @@ Keyingi agentlar (frilans va h.k.) `agents/<nom>/` ichida, `core/` dan foydalana
 - Panel API faqat Owner/Editor sessiyasi bilan; karta/manzil faqat Owner so'raganda ochiladi. O'zgartiruvchi so'rovlar `x-panel: 1` sarlavhasini talab qiladi (CSRF).
 - Foydalanuvchiga ko'rinadigan barcha matnlar o'zbek (lotin) tilida, `texts.py` da (panel frontendida — komponentlarning o'zida). Telegram HTML rejimi — foydalanuvchi matnini `html.escape` qil.
 - Vaqt bazada UTC da saqlanadi, ko'rsatishda `settings.tz` (Asia/Tashkent).
-- DB sxemasi hozircha `create_all` bilan; prod ma'lumotlari paydo bo'lgach Alembic qo'shiladi.
+- DB sxemasi hozircha `create_all` bilan; mavjud jadvalga yangi ustun `init_db` da o'zi qo'shiladi (`server_default` yoki NULL bo'lishi shart). Murakkab o'zgarishlar uchun Alembic qo'shiladi.
 
 ## graphify
 

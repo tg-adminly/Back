@@ -12,7 +12,7 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 | Rol | Kim | Huquqlar |
 |---|---|---|
 | **Owner** | Egasi | Hammasi: agent sozlamalari, homiylar, CRM, to'lovlarni tasdiqlash, userbot kontaktlari |
-| **Editor** | Egasining ayoli | Kontent: postlarni tasdiqlash/tahrirlash, uslub qo'llanma, post jadvali |
+| **Editor** | Egasining ayoli | Kontent: postlarni tasdiqlash/tahrirlash, uslub qo'llanma, post jadvali. Rozigrishlarni ko'radi, qatnashishni yopadi va **jonli o'yinni o'tkazadi** (yaratish, o'zgartirish, bekor qilish, to'lov, homiylar — yo'q) |
 
 ## Ikki "qo'l"
 
@@ -27,7 +27,13 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 ## Oqim 1 — Rozigrish
 
 1. Owner rozigrish yaratadi: o'rinlar soni, **har bir o'rin uchun alohida sovrin** (pul summasi yoki buyum nomi;
-   «Qolganlariga ham» tugmasi bilan bir xil qilish mumkin), tugash vaqti, homiy kanallar ro'yxati.
+   «Qolganlariga ham» tugmasi bilan bir xil qilish mumkin), vaqt, homiy kanallar ro'yxati va **g'olibni aniqlash usuli**:
+   - 🎥 **Jonli o'yin** (standart): vaqt — eslatma. Shu vaqtda qatnashish yopiladi, egasi va muharrirga eslatma
+     keladi, bot o'zi g'olib aniqlamaydi va kanalga hech narsa tashlamaydi;
+   - 🤖 **Avtomatik**: vaqti kelganda bot o'zi aniqlaydi va natijani kanalga tashlaydi (jonli o'yindagi qadamlarning o'zi:
+     qayta tekshiruv → o'rinma-o'rin, chiqib ketganlar o'tkaziladi → e'lon). Xato bo'lsa — egasi/muharrirga jonli o'yin havolasi.
+   Faol rozigrishda vaqt va usulni o'zgartirish mumkin (panel «O'zgartirish») — kanal posti ham yangilanadi.
+   Botdagi yaratishda ham ko'rib chiqish oynasida usulni almashtirish tugmasi bor.
 2. Bot har bir homiy kanalda admin bo'lishi shart (obunani tekshirish uchun) — bot buni oldindan tekshiradi.
    Yopiq kanal: Bot API `t.me/+...` linkdan kanalni topa olmaydi, shuning uchun bot admin qilingan kanallarni
    (`my_chat_member`) eslab qoladi. Panelda «Yopiq kanal» → ro'yxatdan tanlash + taklif linkini qo'yish. ID bilan qo'shish ham qoladi.
@@ -37,10 +43,10 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
    - yo'q → popupda obuna bo'lmagan kanallar ro'yxati, obuna bo'lib qayta bosadi.
 5. Tugash vaqtida **qatnashish yopiladi** (ro'yxat qotiriladi) va bot **hamma ishtirokchining obunasini qayta tekshiradi**
    (qatnashgandan keyin kanaldan chiqib ketganlar — qaysi kanaldan ekani bilan — randomga tushmaydi).
-   Egasiga natija va jonli o'yin havolasi keladi. O'yin boshlanmaguncha jonli sahifada «Qayta tekshirish» mumkin
+   Jonli rejimda egasi va muharrirga natija va jonli o'yin havolasi keladi. O'yin boshlanmaguncha jonli sahifada «Qayta tekshirish» mumkin
    (qayta obuna bo'lganlar qaytadi); birinchi g'olib chiqqach ro'yxat o'zgarmaydi.
    Ishtirokchi bo'lmasa — darhol «ishtirokchi bo'lmadi» e'lon qilinadi.
-6. **Jonli o'yin** (panel, faqat Owner): egasi efirda ekranni ulashib, har o'rin uchun «G'olibni aniqlash»
+6. **Jonli o'yin** (panel, Owner yoki Editor): egasi/muharrir efirda ekranni ulashib, har o'rin uchun «G'olibni aniqlash»
    (yoki Probel) bosadi → baraban aylanadi → g'olib chiqadi. Chiqqan nomzodning obunasi shu zahoti tekshiriladi:
    chiqib ketgan bo'lsa ekranda «❌ «kanal» kanalidan chiqib ketgan — o'tkazib yuborildi» ko'rinadi va baraban qayta aylanadi.
    Hamma o'rinlar to'lgach «Natijani kanalga e'lon qilish» → efirda ko'ringan g'oliblar kanalga chiqadi,

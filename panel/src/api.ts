@@ -33,6 +33,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+  patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
 }
 
@@ -74,6 +75,7 @@ export interface Giveaway {
   title: string
   description: string
   status: GiveawayStatus
+  auto_draw: boolean // true — vaqtida bot o'zi aniqlaydi; false — jonli o'yin (vaqt — eslatma)
   prizes: Prize[]
   winners_count: number
   participants: number
