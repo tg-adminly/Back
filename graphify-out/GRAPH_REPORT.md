@@ -6,55 +6,57 @@
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 5, .graphify-bak 1, .example 1)
 
 ## Summary
-- 774 nodes · 2124 edges · 41 communities (23 shown, 18 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 202 edges (avg confidence: 0.95)
+- 811 nodes · 2054 edges · 41 communities (26 shown, 15 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 56 edges (avg confidence: 0.92)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b0602b9d`
+- Built from commit: `fbb282a4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - ui.tsx
-- Settings
+- _after_close
 - api.py
 - giveaway/texts.py
 - package.json
 - build_router
-- build_router
-- server.py
-- participant.py
-- giveaway/models.py
-- compilerOptions
-- Giveaway
-- compilerOptions
+- service.py
 - __main__.py
+- build_router
+- auth.py
+- compilerOptions
+- announce_results
+- compilerOptions
+- actions.py
 - keyboards.py
 - TG Agent Q
-- Prize
-- _try_join
+- giveaway/models.py
+- db.py
 - permissions
 - .oxlintrc.json
 - TG Agent Q — 1-agent: Rozigrish kanali agenti
 - tsconfig.json
 - tgagent
 - LoginRequests
-- test_panel.py
 - admin.py
-- actions.py
+- test_panel.py
+- utcnow
+- tracking.py
+- Settings
 
 ## God Nodes (most connected - your core abstractions)
-1. `Giveaway` - 51 edges
-2. `Settings` - 36 edges
-3. `build_router()` - 29 edges
-4. `ChatRef` - 29 edges
-5. `GiveawayStatus` - 26 edges
-6. `utcnow()` - 26 edges
-7. `Prize` - 25 edges
-8. `Winner` - 25 edges
-9. `Button()` - 23 edges
-10. `announce_results()` - 23 edges
+1. `build_router()` - 29 edges
+2. `utcnow()` - 26 edges
+3. `Button()` - 23 edges
+4. `main()` - 22 edges
+5. `ErrorBox()` - 21 edges
+6. `announce_results()` - 20 edges
+7. `Settings` - 20 edges
+8. `cx()` - 19 edges
+9. `Loading()` - 19 edges
+10. `_try_join()` - 18 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Qat'iy qoidalar` --references--> `Vault`  [INFERRED]
@@ -71,79 +73,79 @@
 ## Import Cycles
 - None detected.
 
-## Communities (41 total, 18 thin omitted)
+## Communities (41 total, 15 thin omitted)
 
 ### Community 0 - "ui.tsx"
 Cohesion: 0.06
 Nodes (102): api, ApiError, BotChat, Giveaway, GiveawayDetail, GiveawayStatus, LivePick, LiveState (+94 more)
 
-### Community 1 - "Settings"
-Cohesion: 0.20
-Nodes (8): _after_close(), close_now(), close_participation(), draw_loop(), live_url(), remind(), staff_ids(), Settings
+### Community 1 - "_after_close"
+Cohesion: 0.13
+Nodes (14): _after_close(), check_subscriptions(), check(), CheckError, CheckProgress, close_now(), close_participation(), draw_loop() (+6 more)
 
 ### Community 2 - "api.py"
-Cohesion: 0.07
-Nodes (38): SponsorChannel, auth_logout(), auth_poll(), auth_start(), bot_chats(), CancelIn, current_staff(), Deps (+30 more)
+Cohesion: 0.06
+Nodes (47): subscription_misses(), _digits(), parse_amount(), parse_prize(), auth_logout(), auth_poll(), auth_start(), bot_chats() (+39 more)
 
 ### Community 3 - "giveaway/texts.py"
-Cohesion: 0.17
-Nodes (9): active_item(), auto_draw_failed(), draw_mode(), live_ready(), live_reminder(), local_time(), payout_card(), results_post() (+1 more)
+Cohesion: 0.06
+Nodes (28): join(), start_claim(), _claim_prompt(), JoinCounter, _try_join(), active_item(), already_joined(), auto_draw_failed() (+20 more)
 
 ### Community 4 - "package.json"
 Cohesion: 0.06
 Nodes (34): dependencies, react, react-dom, react-router-dom, @tanstack/react-query, devDependencies, oxlint, tailwindcss (+26 more)
 
 ### Community 5 - "build_router"
-Cohesion: 0.07
-Nodes (17): build_router(), got_ends_at(), got_prize(), publish(), sponsors_done(), toggle_auto(), _draft_giveaway(), _digits() (+9 more)
-
-### Community 6 - "build_router"
-Cohesion: 0.33
-Nodes (3): build_router(), login_link(), LoginCB
-
-### Community 7 - "server.py"
-Cohesion: 0.19
-Nodes (3): create_app(), make_server(), _Server
-
-### Community 8 - "participant.py"
-Cohesion: 0.11
-Nodes (9): build_router(), claim_or_default(), ReplyThrottle, normalize_phone(), notify_users(), mask_card(), Vault, test_throttle_limits_repeated_error_replies() (+1 more)
-
-### Community 9 - "giveaway/models.py"
 Cohesion: 0.06
-Nodes (27): commit_of(), new_seed(), participants_file(), participants_hash(), rank(), ticket_hash(), DrawPick, BotChat (+19 more)
+Nodes (16): build_router(), got_ends_at(), got_prize(), publish(), sponsors_done(), toggle_auto(), _draft_giveaway(), normalize_card() (+8 more)
+
+### Community 6 - "service.py"
+Cohesion: 0.11
+Nodes (17): SubscriptionMiss, active_giveaways(), add_participant(), cancel_giveaway(), get_participant(), list_giveaways(), list_participants(), list_sponsors() (+9 more)
+
+### Community 7 - "__main__.py"
+Cohesion: 0.11
+Nodes (9): init_db(), make_engine(), make_sessionmaker(), main(), create_app(), make_server(), serve_panel(), _Server (+1 more)
+
+### Community 8 - "build_router"
+Cohesion: 0.14
+Nodes (6): build_router(), claim_or_default(), ReplyThrottle, notify_users(), mask_card(), test_throttle_limits_repeated_error_replies()
+
+### Community 9 - "auth.py"
+Cohesion: 0.13
+Nodes (14): commit_of(), new_seed(), participants_file(), participants_hash(), rank(), ticket_hash(), create_giveaway(), create_session() (+6 more)
 
 ### Community 10 - "compilerOptions"
 Cohesion: 0.10
 Nodes (19): compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+11 more)
 
-### Community 11 - "Giveaway"
-Cohesion: 0.05
-Nodes (52): ActionError, add_sponsor(), announce_results(), cancel_giveaway(), CancelMode, deliver_prize(), publish_giveaway(), reveal_next() (+44 more)
+### Community 11 - "announce_results"
+Cohesion: 0.09
+Nodes (14): ActionError, add_sponsor(), announce_results(), cancel_giveaway(), CancelMode, deliver_prize(), publish_giveaway(), reveal_next() (+6 more)
 
 ### Community 12 - "compilerOptions"
 Cohesion: 0.12
 Nodes (16): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, noEmit, noFallthroughCasesInSwitch (+8 more)
 
-### Community 13 - "__main__.py"
-Cohesion: 0.12
-Nodes (13): Qat'iy qoidalar, build_router(), bot_is_admin(), chat_link(), _get_member(), is_member(), build_router(), init_db() (+5 more)
+### Community 13 - "actions.py"
+Cohesion: 0.22
+Nodes (7): required_chats(), bot_is_admin(), chat_link(), ChatRef, _get_member(), is_member(), missing_chats()
 
 ### Community 15 - "keyboards.py"
-Cohesion: 0.17
-Nodes (16): claim(), giveaway_post(), JoinCB, manage(), manage_cancel(), manage_confirm(), ManageCB, owner_menu() (+8 more)
+Cohesion: 0.18
+Nodes (15): claim(), giveaway_post(), JoinCB, manage(), manage_cancel(), manage_confirm(), ManageCB, owner_menu() (+7 more)
 
 ### Community 16 - "TG Agent Q"
-Cohesion: 0.40
-Nodes (4): Buyruqlar, graphify, TG Agent Q, Tuzilma
+Cohesion: 0.33
+Nodes (5): Buyruqlar, graphify, Qat'iy qoidalar, TG Agent Q, Tuzilma
 
-### Community 17 - "Prize"
+### Community 17 - "giveaway/models.py"
 Cohesion: 0.18
-Nodes (10): start_claim(), _claim_prompt(), Prize, PrizeType, btn_same_for_rest(), money(), prize_text(), prizes_block() (+2 more)
+Nodes (7): ClaimStep, Giveaway, GiveawayStatus, Prize, PrizeType, Winner, WinnerStatus
 
-### Community 18 - "_try_join"
-Cohesion: 0.16
-Nodes (7): join(), JoinCounter, _try_join(), already_joined(), joined(), joined_but_missing(), not_subscribed()
+### Community 18 - "db.py"
+Cohesion: 0.13
+Nodes (7): DrawPick, Participant, SponsorChannel, BotChat, _add_missing_columns(), Base, UTCDateTime
 
 ### Community 19 - "permissions"
 Cohesion: 0.25
@@ -157,33 +159,45 @@ Nodes (5): plugins, rules, react/only-export-components, react/rules-of-hooks, $
 Cohesion: 0.12
 Nodes (15): Bekor qilish, Boshqaruv paneli (CRM sayt, keyin Mini App), Bosqichlar, G'olib tanlash, Ikki "qo'l", Ishga tushirish uchun kerak bo'ladi, Kanal yoki guruh, Maqsad (+7 more)
 
-### Community 31 - "test_panel.py"
-Cohesion: 0.10
-Nodes (15): FakeBot, future(), login(), test_auto_draw_and_editor_runs_live(), test_bot_chats_lists_admin_channels_not_yet_sponsors(), test_create_giveaway_flow(), test_editor_cannot_see_payouts(), test_invite_link_in_ref_gives_clear_error() (+7 more)
-
-### Community 41 - "actions.py"
+### Community 30 - "admin.py"
 Cohesion: 0.18
-Nodes (9): check_subscriptions(), check(), CheckError, CheckProgress, required_chats(), start_check(), run(), ChatRef (+1 more)
+Nodes (3): CreateGiveaway, Payout, Vault
+
+### Community 31 - "test_panel.py"
+Cohesion: 0.08
+Nodes (16): env(), FakeBot, future(), login(), test_auto_draw_and_editor_runs_live(), test_bot_chats_lists_admin_channels_not_yet_sponsors(), test_create_giveaway_flow(), test_editor_cannot_see_payouts() (+8 more)
+
+### Community 33 - "utcnow"
+Cohesion: 0.23
+Nodes (7): due_giveaway_ids(), due_reminder_ids(), utcnow(), _giveaway(), sm(), test_due_giveaways(), test_participant_numbers_are_sequential_and_unique()
+
+### Community 34 - "tracking.py"
+Cohesion: 0.29
+Nodes (5): build_router(), on_my_status(), forget_chat(), list_chats(), remember_chat()
+
+### Community 37 - "Settings"
+Cohesion: 0.10
+Nodes (5): build_router(), Settings, build_router(), login_link(), LoginCB
 
 ## Knowledge Gaps
-- **109 isolated node(s):** `$schema`, `defaultMode`, `allow`, `deny`, `PreToolUse` (+104 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 308 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **109 isolated node(s):** `Maqsad`, `Rollar`, `Ikki "qo'l"`, `Bekor qilish`, `G'olib tanlash` (+104 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 329 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Giveaway` connect `Giveaway` to `Settings`, `api.py`, `giveaway/texts.py`, `build_router`, `admin.py`, `participant.py`, `actions.py`, `giveaway/models.py`, `Prize`, `_try_join`, `test_panel.py`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
-- **Are the 38 inferred relationships involving `Giveaway` (e.g. with `announce_results()` and `publish_giveaway()`) actually correct?**
-  _`Giveaway` has 38 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `$schema`, `defaultMode`, `allow` to the rest of the system?**
+- **Why does `build_router()` connect `build_router` to `utcnow`, `api.py`, `Settings`, `__main__.py`, `actions.py`, `giveaway/models.py`, `admin.py`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Are the 4 inferred relationships involving `build_router()` (e.g. with `Giveaway` and `ChatRef`) actually correct?**
+  _`build_router()` has 4 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `Maqsad`, `Rollar`, `Ikki "qo'l"` to the rest of the system?**
   _109 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `ui.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.06170798898071626 - nodes in this community are weakly interconnected._
-- **Why does `Settings` connect `Settings` to `api.py`, `build_router`, `admin.py`, `build_router`, `participant.py`, `actions.py`, `giveaway/models.py`, `Giveaway`, `__main__.py`?**
-  _High betweenness centrality (0.037) - this node is a cross-community bridge._
-- **Are the 21 inferred relationships involving `Settings` (e.g. with `add_sponsor()` and `announce_results()`) actually correct?**
-  _`Settings` has 21 INFERRED edges - model-reasoned connections that need verification._
-- **Should `api.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.06956521739130435 - nodes in this community are weakly interconnected._
+- **Why does `utcnow()` connect `utcnow` to `_after_close`, `api.py`, `giveaway/texts.py`, `build_router`, `service.py`, `auth.py`, `actions.py`, `giveaway/models.py`, `db.py`, `admin.py`, `test_panel.py`?**
+  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+- **Should `_after_close` be split into smaller, more focused modules?**
+  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
+- **Why does `Settings` connect `Settings` to `api.py`, `build_router`, `__main__.py`, `auth.py`, `actions.py`, `admin.py`?**
+  _High betweenness centrality (0.022) - this node is a cross-community bridge._
