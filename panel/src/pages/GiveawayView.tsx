@@ -34,8 +34,8 @@ export default function GiveawayView() {
   const g = useQuery({
     queryKey: ['giveaway', id],
     queryFn: () => api.get<GiveawayDetail>(`/giveaways/${id}`),
-    // Qatnashish yopilishini kutib turamiz
-    refetchInterval: (q) => (q.state.data?.status === 'active' ? 10_000 : false),
+    // Obuna tekshiruvi jarayoni; faol paytda — yangi ishtirokchilar
+    refetchInterval: (q) => (q.state.data?.check ? 1000 : q.state.data?.status === 'active' ? 10_000 : false),
   })
   const action = useMutation({
     mutationFn: () => api.post(`/giveaways/${id}/finish`),
@@ -198,7 +198,7 @@ export default function GiveawayView() {
         </div>
       </div>
 
-      <Participants giveawayId={d.id} total={d.participants} />
+      <Participants d={d} />
     </>
   )
 }
@@ -394,25 +394,82 @@ function CancelModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void })
   )
 }
 
-function Participants({ giveawayId, total }: { giveawayId: number; total: number }) {
+function Participants({ d }: { d: GiveawayDetail }) {
   const me = useMe()
+  const qc = useQueryClient()
+  const giveawayId = d.id
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
+  const [onlyMissing, setOnlyMissing] = useState(false)
   const list = useInfiniteQuery({
-    queryKey: ['participants', giveawayId, search],
+    queryKey: ['participants', giveawayId, search, onlyMissing],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       api.get<{ items: Participant[]; has_more: boolean }>(
-        `/giveaways/${giveawayId}/participants?offset=${pageParam}&q=${encodeURIComponent(search)}`,
+        `/giveaways/${giveawayId}/participants?offset=${pageParam}&q=${encodeURIComponent(search)}${onlyMissing ? '&not_subscribed=true' : ''}`,
       ),
     getNextPageParam: (last, pages) => (last.has_more ? pages.reduce((n, p) => n + p.items.length, 0) : undefined),
   })
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
 
+  // Tekshiruv tugagach ro'yxatni yangilaymiz
+  const checking = !!d.check
+  const [wasChecking, setWasChecking] = useState(checking)
+  if (wasChecking !== checking) {
+    setWasChecking(checking)
+    if (!checking) qc.invalidateQueries({ queryKey: ['participants', giveawayId] })
+  }
+  const startCheck = useMutation({
+    mutationFn: () => api.post(`/giveaways/${giveawayId}/live/check`),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['giveaway', String(giveawayId)] }),
+  })
+  // Obunani faqat qatnashish ochiq yoki o'yin hali boshlanmagan paytda tekshirsa bo'ladi
+  const canCheck = (d.status === 'active' || d.status === 'drawing') && d.participants > 0
+
   return (
     <Card className="mt-6">
+      {canCheck && (
+        <div className="mb-4 rounded-lg bg-zinc-50 p-3 text-sm dark:bg-zinc-800/60">
+          {d.check ? (
+            <div>
+              <div className="mb-1.5">
+                🔄 Obuna tekshirilmoqda… <span className="tabular-nums">{d.check.done}/{d.check.total}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                <div
+                  className="h-full rounded-full bg-brand-500 transition-[width] duration-500"
+                  style={{ width: `${d.check.total ? Math.round((d.check.done / d.check.total) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                {d.not_subscribed ? (
+                  <span className="text-red-600 dark:text-red-400">❌ {d.not_subscribed} kishi biror kanalga obuna emas</span>
+                ) : (
+                  <span className="text-zinc-600 dark:text-zinc-300">Obuna holati — oxirgi tekshiruv bo'yicha</span>
+                )}
+              </span>
+              <Button variant="secondary" onClick={() => startCheck.mutate()} disabled={startCheck.isPending}>
+                🔄 Obunani tekshirish
+              </Button>
+            </div>
+          )}
+          {d.check_error && !d.check && <div className="mt-2 text-xs text-amber-700 dark:text-amber-400">⚠️ {d.check_error}</div>}
+          <ErrorBox error={startCheck.error} />
+        </div>
+      )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">👥 Ishtirokchilar ({total})</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-semibold">👥 Ishtirokchilar ({d.participants})</h2>
+          {(d.not_subscribed > 0 || onlyMissing) && (
+            <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-300">
+              <input type="checkbox" className="accent-brand-500" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
+              Faqat obuna bo'lmaganlar
+            </label>
+          )}
+        </div>
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -446,6 +503,7 @@ function Participants({ giveawayId, total }: { giveawayId: number; total: number
                     <a href={`tg://user?id=${p.user_id}`} className="hover:text-brand-600">
                       {userLabel(p.name, p.username)}
                     </a>
+                    {p.missing.length > 0 && <div className="text-xs text-red-600 dark:text-red-400">❌ Obuna emas: {p.missing.join(', ')}</div>}
                   </td>
                   <td className="py-1.5 whitespace-nowrap text-zinc-500">{formatDate(p.joined_at, me.timezone)}</td>
                 </tr>
@@ -454,7 +512,7 @@ function Participants({ giveawayId, total }: { giveawayId: number; total: number
           </table>
         </div>
       ) : (
-        <Empty>{search ? 'Topilmadi.' : "Hali hech kim qatnashmagan."}</Empty>
+        <Empty>{search ? 'Topilmadi.' : onlyMissing ? "Hamma obuna ✅" : "Hali hech kim qatnashmagan."}</Empty>
       )}
       {list.hasNextPage && (
         <div className="mt-3 text-center">

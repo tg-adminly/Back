@@ -114,6 +114,23 @@ async def close_participation(bot: Bot, sm: async_sessionmaker, settings: Settin
 _close_tasks: set[asyncio.Task] = set()
 
 
+async def start_check(bot: Bot, sm: async_sessionmaker, main_chat: ChatRef, giveaway_id: int) -> None:
+    """Obuna tekshiruvini fonda boshlaydi. Qaytgan paytda u `checks` da (jarayon panelda darhol ko'rinadi)."""
+
+    async def run():
+        try:
+            await check_subscriptions(bot, sm, main_chat, giveaway_id)
+        except CheckError:
+            pass  # sababi check_errors da
+        except Exception:
+            log.exception("Rozigrish #%s: obunani tekshirib bo'lmadi", giveaway_id)
+
+    task = asyncio.create_task(run())
+    _close_tasks.add(task)
+    task.add_done_callback(_close_tasks.discard)
+    await asyncio.sleep(0)  # check_subscriptions birinchi await'gacha yuradi va `checks` ni to'ldiradi
+
+
 async def close_now(bot: Bot, sm: async_sessionmaker, settings: Settings, main_chat: ChatRef, giveaway_id: int, *, notify: bool) -> bool:
     """Qatnashishni shu zahoti yopadi; obuna tekshiruvi (va avtomatik rejimda aniqlash) fonda davom etadi.
 
@@ -169,11 +186,11 @@ async def _after_close(
 
 
 async def check_subscriptions(bot: Bot, sm: async_sessionmaker, main_chat: ChatRef, giveaway_id: int) -> int:
-    """Jonli o'yindan oldin hamma ishtirokchining obunasini qayta tekshiradi.
+    """Hamma ishtirokchining obunasini qayta tekshiradi (faol rozigrishda ham, o'yindan oldin ham).
 
-    Chiqib ketganlar SubscriptionMiss ga yoziladi (qaysi kanal) va randomga tushmaydi;
-    qayta obuna bo'lganlar ro'yxatdan chiqadi. O'yin boshlangach (birinchi pick) ishlamaydi.
-    Chiqib ketganlar sonini qaytaradi.
+    Obuna bo'lmaganlar SubscriptionMiss ga yoziladi (qaysi kanal) — panelda va ochiq ro'yxatda ko'rinadi,
+    o'yinda randomga tushmaydi; qayta obuna bo'lganlar ro'yxatdan chiqadi. O'yin boshlangach (birinchi pick) ishlamaydi.
+    Obuna bo'lmaganlar sonini qaytaradi.
     """
     if giveaway_id in checks:
         raise CheckError(texts.CHECK_RUNNING)
@@ -184,8 +201,8 @@ async def check_subscriptions(bot: Bot, sm: async_sessionmaker, main_chat: ChatR
         async with draw_locks[giveaway_id]:
             async with sm() as s:
                 g = await s.get(Giveaway, giveaway_id)
-                if g is None or g.status != GiveawayStatus.DRAWING:
-                    raise CheckError(texts.NOT_DRAWING)
+                if g is None or g.status not in (GiveawayStatus.ACTIVE, GiveawayStatus.DRAWING):
+                    raise CheckError(texts.NOT_CHECKABLE)
                 if await service.list_picks(s, giveaway_id):
                     raise CheckError(texts.CHECK_TOO_LATE)
                 parts = await service.list_participants(s, giveaway_id)

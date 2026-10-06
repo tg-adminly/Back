@@ -110,6 +110,7 @@ async def update_giveaway(
     auto_draw: bool | None = None,
     sponsor_ids: list[int] | None = None,
     announce_sponsors: bool = False,
+    main_chat: ChatRef | None = None,
 ) -> str | None:
     """Faol rozigrishning vaqtini / aniqlash usulini / homiylarini o'zgartiradi va kanaldagi postni yangilaydi.
 
@@ -125,14 +126,19 @@ async def update_giveaway(
         if auto_draw is not None:
             g.auto_draw = auto_draw
         added: list[SponsorChannel] = []
+        sponsors_changed = False
         if sponsor_ids is not None:
             found = (await s.scalars(select(SponsorChannel).where(SponsorChannel.id.in_(sponsor_ids)))).all()
             by_id = {sp.id: sp for sp in found}
             before = {sp.id for sp in g.sponsors}
             g.sponsors = [by_id[i] for i in sponsor_ids if i in by_id]
             added = [sp for sp in g.sponsors if sp.id not in before]
+            sponsors_changed = before != {sp.id for sp in g.sponsors}
         await s.commit()
         count = await service.participants_count(s, g.id)
+    # Shartlar o'zgardi — kim qaysi kanalga obuna emasligi panelda va ochiq ro'yxatda ko'rinsin
+    if sponsors_changed and count and main_chat and g.id not in jobs.checks:
+        await jobs.start_check(bot, sm, main_chat, g.id)
     if not g.message_id:
         return None
     sponsors = [ChatRef(sp.chat_id, sp.title, sp.link) for sp in g.sponsors]

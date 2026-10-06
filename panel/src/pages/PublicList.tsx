@@ -20,6 +20,7 @@ export default function PublicList() {
   const { id } = useParams()
   const [q, setQ] = useState('')
   const [limit, setLimit] = useState(PAGE)
+  const [onlyMissing, setOnlyMissing] = useState(false)
   const g = useQuery({
     queryKey: ['public', id],
     queryFn: () => api.get<PublicGiveaway>(`/public/giveaways/${id}`),
@@ -27,11 +28,12 @@ export default function PublicList() {
   })
 
   const filtered = useMemo(() => {
-    const items = g.data?.participants ?? []
+    const all = g.data?.participants ?? []
+    const items = onlyMissing ? all.filter((p) => p.missing.length) : all
     const term = q.trim().replace(/^#/, '').toLowerCase()
     if (!term) return items
     return items.filter((p) => String(p.number) === term || p.name.toLowerCase().includes(term))
-  }, [g.data, q])
+  }, [g.data, q, onlyMissing])
 
   if (g.isPending) return <Loading />
   if (g.error)
@@ -107,7 +109,23 @@ export default function PublicList() {
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold">👥 Ishtirokchilar</h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="font-semibold">👥 Ishtirokchilar</h2>
+            {(dropped > 0 || onlyMissing) && (
+              <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  className="accent-brand-500"
+                  checked={onlyMissing}
+                  onChange={(e) => {
+                    setOnlyMissing(e.target.checked)
+                    setLimit(PAGE)
+                  }}
+                />
+                Faqat obuna bo'lmaganlar ({dropped})
+              </label>
+            )}
+          </div>
           <input
             className={inputClass + ' sm:w-60'}
             placeholder="Ismingiz yoki raqamingiz"
@@ -135,7 +153,7 @@ export default function PublicList() {
             ))}
           </ul>
         ) : (
-          <div className="py-8 text-center text-sm text-zinc-500">{q ? 'Topilmadi.' : "Hali hech kim qatnashmagan."}</div>
+          <div className="py-8 text-center text-sm text-zinc-500">{q ? 'Topilmadi.' : onlyMissing ? 'Hamma obuna ✅' : "Hali hech kim qatnashmagan."}</div>
         )}
         {filtered.length > limit && (
           <button onClick={() => setLimit(limit + PAGE)} className="mt-3 w-full rounded-lg py-2 text-sm text-brand-600 hover:bg-brand-50 dark:hover:bg-zinc-800">

@@ -335,17 +335,30 @@ async def test_live_mode_time_is_only_reminder(env):
     # Oldin qatnashgan odam yangi homiyga obuna emas — popup aynan shu kanalni aytadi
     async with env.sm() as s:
         await service.add_participant(s, gid, 77, "Oldingi", None)
+    env.bot.left_in[-1005] = {77}
     sent = len(env.bot.sent)
     body_patch = {"sponsor_ids": [sp["id"]], "announce_sponsors": True}
     r = await env.client.patch(f"/api/giveaways/{gid}", json=body_patch, headers=H)
     assert r.json()["warning"] is None
-    assert [x["title"] for x in (await env.client.get(f"/api/giveaways/{gid}")).json()["sponsors"]] == ["Homiy kanal"]
     notice = env.bot.sent[-1]
     assert len(env.bot.sent) == sent + 2 and notice[0] == "message" and "yangi homiy" in notice[2]
-    env.bot.left_in[-1005] = {77}
+
+    # Homiy o'zgargach bot hammani o'zi tekshiradi — panelda kim obuna emasligi ko'rinadi
+    while (g := (await env.client.get(f"/api/giveaways/{gid}")).json())["check"]:
+        await asyncio.sleep(0.01)
+    assert [x["title"] for x in g["sponsors"]] == ["Homiy kanal"] and g["not_subscribed"] == 1
+    items = (await env.client.get(f"/api/giveaways/{gid}/participants?not_subscribed=true")).json()["items"]
+    assert [(p["user_id"], p["missing"]) for p in items] == [(77, ["Homiy kanal"])]
+    panel_api._public_cache.clear()
+    pub = (await env.client.get(f"/api/public/giveaways/{gid}")).json()
+    assert pub["participants"][0]["missing"] == ["Homiy kanal"]
+
     text, created = await _try_join(env.bot, env.sm, env.main_chat, gid, SimpleNamespace(id=77, full_name="O", username=None))
     assert not created and "Homiy kanal" in text and "obuna emassiz" in text
+    # Obuna bo'lib qayta bosdi — holati darhol yangilanadi
     env.bot.left_in.clear()
+    await _try_join(env.bot, env.sm, env.main_chat, gid, SimpleNamespace(id=77, full_name="O", username=None))
+    assert (await env.client.get(f"/api/giveaways/{gid}")).json()["not_subscribed"] == 0
 
     # Vaqt o'tdi: bot yopmaydi, faqat eslatadi (bir marta)
     async with env.sm() as s:

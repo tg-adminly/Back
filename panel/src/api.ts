@@ -104,6 +104,9 @@ export interface Winner {
 
 export interface GiveawayDetail extends Giveaway {
   winners: Winner[]
+  not_subscribed: number // oxirgi tekshiruv bo'yicha biror kanalga obuna bo'lmaganlar
+  check: { total: number; done: number } | null // obuna tekshiruvi ketyapti
+  check_error: string | null
 }
 
 export interface Participant {
@@ -112,6 +115,7 @@ export interface Participant {
   name: string
   username: string | null
   joined_at: string
+  missing: string[] // obuna bo'lmagan kanallar
 }
 
 export interface Stats {

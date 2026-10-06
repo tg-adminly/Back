@@ -347,6 +347,7 @@ BOT_NOT_ADMIN_IN = "Bot «{title}» kanalida admin emas — obunani tekshira olm
 ANNOUNCE_FAILED = "Natijani kanalga yuborib bo'lmadi: {error}"
 CHECK_RUNNING = "Obuna tekshirilmoqda — tugashini kuting."
 CHECK_FAILED = "Obunani tekshirishda xato bo'ldi — qayta urinib ko'ring."
+NOT_CHECKABLE = "Bu rozigrishda obunani tekshirib bo'lmaydi (yakunlangan yoki bekor qilingan)."
 CHECK_TOO_LATE = "O'yin boshlangan — ro'yxatni endi yangilab bo'lmaydi."
 
 

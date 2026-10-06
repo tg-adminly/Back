@@ -167,6 +167,9 @@ async def _try_join(bot: Bot, sm: async_sessionmaker, main_chat: ChatRef, giveaw
 
     missing = await missing_chats(bot, required_chats(g, main_chat), user.id)
     if existing:
+        # Panel va ochiq ro'yxatdagi holat ham yangilanadi (obuna bo'lib qayta bossa — ro'yxatdan chiqadi)
+        async with sm() as s:
+            await service.set_miss(s, existing, [c.title for c in missing])
         # Post hammaga bir xil — shaxsan kimga qaysi kanal yetishmasligini shu popup aytadi
         if missing:
             return texts.joined_but_missing(existing.number, [c.title for c in missing]), False

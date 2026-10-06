@@ -242,6 +242,18 @@ async def save_misses(session: AsyncSession, giveaway_id: int, misses: dict[int,
     session.add_all(SubscriptionMiss(participant_id=pid, giveaway_id=giveaway_id, chats=chats) for pid, chats in misses.items())
 
 
+async def set_miss(session: AsyncSession, participant: Participant, chats: list[str]) -> None:
+    """Bitta ishtirokchining obuna holatini yangilaydi («Qatnashish» qayta bosilganda). chats=[] — hammasiga obuna."""
+    row = await session.get(SubscriptionMiss, participant.id)
+    if chats and row:
+        row.chats, row.checked_at = chats, utcnow()
+    elif chats:
+        session.add(SubscriptionMiss(participant_id=participant.id, giveaway_id=participant.giveaway_id, chats=chats))
+    elif row:
+        await session.delete(row)
+    await session.commit()
+
+
 async def next_candidate(session: AsyncSession, g: Giveaway, picks: list[DrawPick]) -> Participant | None:
     """Random tartibida hali chiqmagan birinchi ishtirokchi (draw.rank — qotirilgan ro'yxat bo'yicha).
 

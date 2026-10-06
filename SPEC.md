@@ -38,6 +38,10 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
    ixtiyoriy ravishda kanalga «yangi homiy qo'shildi» xabari (post'ga javob) ketadi. Post hammaga bir xil (Telegram tugmalarni
    har kimga alohida ko'rsatmaydi), shuning uchun oldin qatnashgan odam «Qatnashish»ni bossa, popupda aynan u obuna
    bo'lmagan kanallar chiqadi.
+   **Obuna holati faol rozigrishda ham ko'rinadi:** homiylar o'zgarsa bot hammani o'zi qayta tekshiradi; panelda
+   (rozigrish sahifasi → ishtirokchilar) «🔄 Obunani tekshirish» tugmasi va «Faqat obuna bo'lmaganlar» filtri, har birining
+   yonida qaysi kanalga obuna emasligi. Ochiq ro'yxatda (`/p/<id>`) ham shu ko'rinadi. Ishtirokchi «Qatnashish»ni qayta
+   bossa, uning holati darhol yangilanadi.
    Botdagi yaratishda ham ko'rib chiqish oynasida usulni almashtirish tugmasi bor.
 2. Bot har bir homiy kanalda admin bo'lishi shart (obunani tekshirish uchun) — bot buni oldindan tekshiradi.
    Yopiq kanal: Bot API `t.me/+...` linkdan kanalni topa olmaydi, shuning uchun bot admin qilingan kanallarni

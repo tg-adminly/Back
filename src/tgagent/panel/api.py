@@ -1,6 +1,5 @@
 """Panel JSON API. Hamma yo'llar /api ostida, faqat Owner/Editor sessiyasi bilan."""
 
-import asyncio
 import html
 import logging
 import re
@@ -25,6 +24,7 @@ from tgagent.agents.giveaway.models import (
     Prize,
     PrizeType,
     SponsorChannel,
+    SubscriptionMiss,
     Winner,
     WinnerStatus,
     giveaway_sponsors,
@@ -333,18 +333,32 @@ async def giveaway_detail(gid: int, d: D, _: Staff):
             raise HTTPException(404, plain(texts.GIVEAWAY_NOT_FOUND))
         count = await service.participants_count(s, gid)
         winners = await service.list_winners(s, gid)
-    return {**giveaway_out(d, g, count), "winners": [winner_out(w) for w in winners]}
+        misses = await service.subscription_misses(s, gid)
+    progress = jobs.checks.get(gid)
+    return {
+        **giveaway_out(d, g, count),
+        "winners": [winner_out(w) for w in winners],
+        "not_subscribed": len(misses),  # oxirgi tekshiruv bo'yicha obuna bo'lmaganlar
+        "check": {"total": progress.total, "done": progress.done} if progress else None,
+        "check_error": jobs.check_errors.get(gid),
+    }
 
 
 @router.get("/giveaways/{gid}/participants")
-async def giveaway_participants(gid: int, d: D, _: Staff, q: str = "", offset: int = 0, limit: int = 50):
+async def giveaway_participants(
+    gid: int, d: D, _: Staff, q: str = "", offset: int = 0, limit: int = 50, not_subscribed: bool = False
+):
+    """not_subscribed=true — faqat biror kanalga obuna bo'lmaganlar (oxirgi tekshiruv bo'yicha)."""
     limit = min(max(limit, 1), 200)
     query = select(Participant).where(Participant.giveaway_id == gid)
+    if not_subscribed:
+        query = query.where(Participant.id.in_(select(SubscriptionMiss.participant_id)))
     if q.strip():
         like = f"%{q.strip().lstrip('@')}%"
         query = query.where(Participant.full_name.ilike(like) | Participant.username.ilike(like))
     async with d.sm() as s:
         rows = (await s.scalars(query.order_by(Participant.number).offset(max(offset, 0)).limit(limit + 1))).all()
+        misses = await service.subscription_misses(s, gid)
     return {
         "items": [
             {
@@ -353,6 +367,7 @@ async def giveaway_participants(gid: int, d: D, _: Staff, q: str = "", offset: i
                 "name": p.full_name,
                 "username": p.username,
                 "joined_at": p.joined_at.isoformat(),
+                "missing": misses.get(p.id, []),
             }
             for p in rows[:limit]
         ],
@@ -381,6 +396,7 @@ async def giveaway_update(gid: int, body: GiveawayPatch, d: D, _: Owner):
             auto_draw=body.auto_draw,
             sponsor_ids=body.sponsor_ids,
             announce_sponsors=body.announce_sponsors,
+            main_chat=d.main_chat,
         )
     except actions.ActionError as e:
         raise HTTPException(400, plain(e.message)) from None
@@ -444,34 +460,19 @@ async def live_state(gid: int, d: D, _: Staff):
     }
 
 
-_check_tasks: set[asyncio.Task] = set()
-
-
 @router.post("/giveaways/{gid}/live/check")
 async def live_check(gid: int, d: D, _: Staff):
-    """Obunani qayta tekshirish (fonda). Natijasi /live da: check — jarayon, excluded — chiqib ketganlar."""
+    """Obunani qayta tekshirish (fonda) — faol rozigrishda ham, o'yindan oldin ham.
+    Jarayon /live va /giveaways/{gid} da (check), natija — ishtirokchilardagi missing."""
     if gid in jobs.checks:
         raise HTTPException(400, plain(texts.CHECK_RUNNING))
     async with d.sm() as s:
         g = await s.get(Giveaway, gid)
-        if g is None or g.status != GiveawayStatus.DRAWING:
-            raise HTTPException(400, plain(texts.NOT_DRAWING))
+        if g is None or g.status not in (GiveawayStatus.ACTIVE, GiveawayStatus.DRAWING):
+            raise HTTPException(400, plain(texts.NOT_CHECKABLE))
         if await service.list_picks(s, gid):
             raise HTTPException(400, plain(texts.CHECK_TOO_LATE))
-
-    async def run():
-        try:
-            await jobs.check_subscriptions(d.bot, d.sm, d.main_chat, gid)
-        except jobs.CheckError:
-            pass  # sababi jobs.check_errors da
-        except Exception:
-            log.exception("Rozigrish #%s: obunani tekshirib bo'lmadi", gid)
-        _public_cache.pop(gid, None)
-
-    task = asyncio.create_task(run())
-    _check_tasks.add(task)
-    task.add_done_callback(_check_tasks.discard)
-    await asyncio.sleep(0)  # jobs.checks to'lsin — keyingi /live darhol jarayonni ko'rsatadi
+    await jobs.start_check(d.bot, d.sm, d.main_chat, gid)
     return {"ok": True}
 
 
