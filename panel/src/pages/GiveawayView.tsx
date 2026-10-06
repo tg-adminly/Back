@@ -444,13 +444,16 @@ function Participants({ d }: { d: GiveawayDetail }) {
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span>
+              <div>
                 {d.not_subscribed ? (
-                  <span className="text-red-600 dark:text-red-400">❌ {d.not_subscribed} kishi biror kanalga obuna emas</span>
+                  <div className="text-red-600 dark:text-red-400">❌ {d.not_subscribed} kishi biror kanalga obuna emas</div>
                 ) : (
-                  <span className="text-zinc-600 dark:text-zinc-300">Obuna holati — oxirgi tekshiruv bo'yicha</span>
+                  <div className="text-zinc-600 dark:text-zinc-300">{d.last_checked ? '✅ Hamma obuna' : 'Obuna holati'}</div>
                 )}
-              </span>
+                <div className="text-xs text-zinc-500">
+                  {d.last_checked ? `Oxirgi tekshiruv: ${formatDate(d.last_checked, me.timezone)}` : 'Hali tekshirilmagan (yoki server qayta ishga tushgan)'}
+                </div>
+              </div>
               <Button variant="secondary" onClick={() => startCheck.mutate()} disabled={startCheck.isPending}>
                 🔄 Obunani tekshirish
               </Button>

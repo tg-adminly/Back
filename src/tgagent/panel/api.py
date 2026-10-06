@@ -341,6 +341,7 @@ async def giveaway_detail(gid: int, d: D, _: Staff):
         "not_subscribed": len(misses),  # oxirgi tekshiruv bo'yicha obuna bo'lmaganlar
         "check": {"total": progress.total, "done": progress.done} if progress else None,
         "check_error": jobs.check_errors.get(gid),
+        "last_checked": (lc := jobs.last_checked.get(gid)) and lc.isoformat(),
     }
 
 

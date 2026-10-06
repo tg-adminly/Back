@@ -31,6 +31,8 @@ class FakeBot:
         return SimpleNamespace(id=999, username="test_bot")
 
     async def get_chat(self, ref):
+        if "ikkinchi" in str(ref):
+            return SimpleNamespace(id=-1006, title="Ikkinchi homiy", username="ikkinchi", invite_link=None)
         return SimpleNamespace(id=-1005, title="Homiy kanal", username="homiy", invite_link=None)
 
     async def get_chat_member(self, chat_id, user_id):
@@ -398,3 +400,25 @@ async def test_preview_accepts_empty_form(env):
     r = await env.client.post("/api/giveaways/preview", json=body, headers=H)
     assert r.status_code == 200 and {"title", "description"} <= r.json()["errors"].keys()
     assert (await env.client.post("/api/giveaways", json=body, headers=H)).status_code == 422
+
+
+async def test_new_second_sponsor_marks_old_participants(env):
+    """Bitta homiy bilan yaratildi → qatnashdi → yangi (ikkinchi) homiy qo'shildi: u obuna bo'lmagani panelda ko'rinadi."""
+    from tgagent.agents.giveaway.handlers.participant import _try_join
+
+    await login(env)
+    first = (await env.client.post("/api/sponsors", json={"ref": "t.me/homiy"}, headers=H)).json()
+    body = {"title": "R", "description": "Y", "prizes": ["100k"], "ends_at": future(), "sponsor_ids": [first["id"]]}
+    gid = (await env.client.post("/api/giveaways", json=body, headers=H)).json()["id"]
+    env.bot.left_in[-1006] = {500}  # ikkinchi kanalga obuna emas
+    _, created = await _try_join(env.bot, env.sm, env.main_chat, gid, SimpleNamespace(id=500, full_name="Men", username=None))
+    assert created
+
+    second = (await env.client.post("/api/sponsors", json={"ref": "t.me/ikkinchi"}, headers=H)).json()
+    patch = {"sponsor_ids": [first["id"], second["id"]], "announce_sponsors": True}
+    assert (await env.client.patch(f"/api/giveaways/{gid}", json=patch, headers=H)).json()["warning"] is None
+    while (g := (await env.client.get(f"/api/giveaways/{gid}")).json())["check"]:
+        await asyncio.sleep(0.01)
+    assert g["not_subscribed"] == 1 and g["last_checked"] and g["check_error"] is None
+    items = (await env.client.get(f"/api/giveaways/{gid}/participants")).json()["items"]
+    assert items[0]["missing"] == ["Ikkinchi homiy"]

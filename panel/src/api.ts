@@ -107,6 +107,7 @@ export interface GiveawayDetail extends Giveaway {
   not_subscribed: number // oxirgi tekshiruv bo'yicha biror kanalga obuna bo'lmaganlar
   check: { total: number; done: number } | null // obuna tekshiruvi ketyapti
   check_error: string | null
+  last_checked: string | null // oxirgi tekshiruv (server qayta ishga tushgach — null)
 }
 
 export interface Participant {

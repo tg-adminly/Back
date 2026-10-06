@@ -8,6 +8,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 from html import escape
 
 from aiogram import Bot
@@ -41,6 +42,8 @@ class CheckProgress:
 checks: dict[int, CheckProgress] = {}
 # Oxirgi tekshiruv xato bilan tugagan bo'lsa — sababi (panelda ko'rsatiladi)
 check_errors: dict[int, str] = {}
+# Oxirgi muvaffaqiyatli tekshiruv vaqti (panelda «oxirgi tekshiruv» — tekshiruv bo'lganini ko'rish uchun)
+last_checked: dict[int, datetime] = {}
 
 
 class CheckError(Exception):
@@ -197,6 +200,7 @@ async def check_subscriptions(bot: Bot, sm: async_sessionmaker, main_chat: ChatR
     # Darhol belgilanadi (await'dan oldin) — panel jarayonni shu zahoti ko'radi, ikkinchi tekshiruv boshlanmaydi
     progress = checks[giveaway_id] = CheckProgress(total=0)
     check_errors.pop(giveaway_id, None)
+    log.info("Rozigrish #%s: obuna tekshiruvi boshlandi", giveaway_id)
     try:
         async with draw_locks[giveaway_id]:
             async with sm() as s:
@@ -227,6 +231,7 @@ async def check_subscriptions(bot: Bot, sm: async_sessionmaker, main_chat: ChatR
             async with sm() as s:
                 await service.save_misses(s, giveaway_id, misses)
                 await s.commit()
+            last_checked[giveaway_id] = utcnow()
     except CheckError as e:
         check_errors[giveaway_id] = e.args[0]
         raise
@@ -235,5 +240,5 @@ async def check_subscriptions(bot: Bot, sm: async_sessionmaker, main_chat: ChatR
         raise
     finally:
         del checks[giveaway_id]
-    log.info("Rozigrish #%s: obuna tekshirildi, %s/%s chiqib ketgan", giveaway_id, len(misses), len(parts))
+    log.info("Rozigrish #%s: obuna tekshirildi, %s/%s obuna emas", giveaway_id, len(misses), len(parts))
     return len(misses)
