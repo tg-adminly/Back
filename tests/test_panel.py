@@ -25,6 +25,7 @@ class FakeBot:
     def __init__(self):
         self.sent = []
         self.left: set[int] = set()  # kanaldan chiqib ketgan user_id lar
+        self.left_in: dict[int, set[int]] = {}  # faqat bitta kanalda obuna emaslar: chat_id -> user_id
 
     async def me(self):
         return SimpleNamespace(id=999, username="test_bot")
@@ -33,7 +34,8 @@ class FakeBot:
         return SimpleNamespace(id=-1005, title="Homiy kanal", username="homiy", invite_link=None)
 
     async def get_chat_member(self, chat_id, user_id):
-        return SimpleNamespace(status="left" if user_id in self.left else "administrator")
+        left = user_id in self.left or user_id in self.left_in.get(chat_id, set())
+        return SimpleNamespace(status="left" if left else "administrator")
 
     async def send_message(self, chat_id, text, **kw):
         self.sent.append(("message", chat_id, text))
@@ -330,8 +332,20 @@ async def test_live_mode_time_is_only_reminder(env):
     # Homiyni olib tashlash — post yangilanadi
     r = await env.client.patch(f"/api/giveaways/{gid}", json={"sponsor_ids": []}, headers=H)
     assert r.json()["warning"] is None and "Homiy kanallarga" not in env.bot.sent[-1][2]
-    r = await env.client.patch(f"/api/giveaways/{gid}", json={"sponsor_ids": [sp["id"]]}, headers=H)
+    # Oldin qatnashgan odam yangi homiyga obuna emas — popup aynan shu kanalni aytadi
+    async with env.sm() as s:
+        await service.add_participant(s, gid, 77, "Oldingi", None)
+    sent = len(env.bot.sent)
+    body_patch = {"sponsor_ids": [sp["id"]], "announce_sponsors": True}
+    r = await env.client.patch(f"/api/giveaways/{gid}", json=body_patch, headers=H)
+    assert r.json()["warning"] is None
     assert [x["title"] for x in (await env.client.get(f"/api/giveaways/{gid}")).json()["sponsors"]] == ["Homiy kanal"]
+    notice = env.bot.sent[-1]
+    assert len(env.bot.sent) == sent + 2 and notice[0] == "message" and "yangi homiy" in notice[2]
+    env.bot.left_in[-1005] = {77}
+    text, created = await _try_join(env.bot, env.sm, env.main_chat, gid, SimpleNamespace(id=77, full_name="O", username=None))
+    assert not created and "Homiy kanal" in text and "obuna emassiz" in text
+    env.bot.left_in.clear()
 
     # Vaqt o'tdi: bot yopmaydi, faqat eslatadi (bir marta)
     async with env.sm() as s:
@@ -355,10 +369,19 @@ async def test_live_mode_time_is_only_reminder(env):
     assert (await env.client.post(f"/api/giveaways/{gid}/finish", headers=H)).json() == {"ok": True}
     while (state := (await env.client.get(f"/api/giveaways/{gid}/live")).json())["check"]:
         await asyncio.sleep(0.01)
-    assert state["status"] == "drawing" and state["participants"] == 1
+    assert state["status"] == "drawing" and state["participants"] == 2
     _, created = await _try_join(env.bot, env.sm, env.main_chat, gid, SimpleNamespace(id=56, full_name="X", username=None))
     assert not created
 
     # O'yin paytida ham bekor qilsa bo'ladi; o'chirish rejimi
     r = await env.client.post(f"/api/giveaways/{gid}/cancel", json={"mode": "delete"}, headers=H)
     assert r.json() == {"ok": True, "warning": None} and env.bot.sent[-1][0] == "delete"
+
+
+async def test_preview_accepts_empty_form(env):
+    """Forma bo'sh paytda ham preview 200 qaytaradi (xatolar maydon bo'yicha), 422 emas."""
+    await login(env)
+    body = {"title": "", "description": "", "prizes": [""], "ends_at": future()}
+    r = await env.client.post("/api/giveaways/preview", json=body, headers=H)
+    assert r.status_code == 200 and {"title", "description"} <= r.json()["errors"].keys()
+    assert (await env.client.post("/api/giveaways", json=body, headers=H)).status_code == 422

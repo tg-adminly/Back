@@ -215,8 +215,10 @@ async def stats(d: D, _: Owner):
 
 
 class GiveawayIn(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
-    description: str = Field(min_length=1, max_length=3000)
+    # Bo'sh qiymat ham qabul qilinadi: preview forma to'ldirilayotganda chaqiriladi,
+    # bo'shligini parse_giveaway maydon xatosi sifatida qaytaradi (422 emas)
+    title: str = Field(max_length=255)
+    description: str = Field(max_length=3000)
     prizes: list[str] = Field(min_length=1, max_length=100)  # har o'rin uchun: "500 ming", "iPhone 15" ...
     ends_at: str  # mahalliy vaqt, "2026-10-15T20:00"
     sponsor_ids: list[int] = []
@@ -227,6 +229,7 @@ class GiveawayPatch(BaseModel):
     ends_at: str | None = None  # mahalliy vaqt
     auto_draw: bool | None = None
     sponsor_ids: list[int] | None = None
+    announce_sponsors: bool = False  # yangi qo'shilgan homiylar haqida kanalga xabar
 
 
 class CancelIn(BaseModel):
@@ -370,7 +373,14 @@ async def giveaway_update(gid: int, body: GiveawayPatch, d: D, _: Owner):
             raise HTTPException(422, {"errors": {"ends_at": ptexts.API_BAD_ENDS_AT}})
     try:
         warning = await actions.update_giveaway(
-            d.bot, d.settings, d.sm, gid, ends_at=ends_at, auto_draw=body.auto_draw, sponsor_ids=body.sponsor_ids
+            d.bot,
+            d.settings,
+            d.sm,
+            gid,
+            ends_at=ends_at,
+            auto_draw=body.auto_draw,
+            sponsor_ids=body.sponsor_ids,
+            announce_sponsors=body.announce_sponsors,
         )
     except actions.ActionError as e:
         raise HTTPException(400, plain(e.message)) from None

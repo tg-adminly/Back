@@ -212,6 +212,7 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
   const [endsAt, setEndsAt] = useState(initialEndsAt)
   const [sponsorIds, setSponsorIds] = useState(() => d.sponsors.map((s) => s.id))
   const [addingSponsor, setAddingSponsor] = useState(false)
+  const [announce, setAnnounce] = useState(true)
   const sponsors = useQuery({ queryKey: ['sponsors'], queryFn: () => api.get<Sponsor[]>('/sponsors') })
   const known = new Map([...d.sponsors, ...(sponsors.data ?? [])].map((s) => [s.id, s]))
   const chosen = sponsorIds.map((sid) => known.get(sid)).filter((s): s is Sponsor => !!s)
@@ -223,6 +224,7 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
         auto_draw: autoDraw,
         ends_at: endsAt === initialEndsAt ? null : endsAt,
         sponsor_ids: sponsorIds,
+        announce_sponsors: added && announce,
       }),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['giveaway', String(d.id)] })
@@ -276,10 +278,19 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
             ) : (
               <div className="px-2 text-sm text-zinc-500">Homiysiz</div>
             )}
-            {added && d.participants > 0 && (
-              <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                ⚠️ Avval qatnashgan {d.participants} kishi ham yangi homiyga obuna bo'lishi kerak — aks holda o'yinda o'tkazib yuboriladi.
-              </p>
+            {added && (
+              <div className="mt-2 space-y-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                {d.participants > 0 && (
+                  <p>
+                    ⚠️ Avval qatnashgan {d.participants} kishi ham yangi homiyga obuna bo'lishi kerak — aks holda o'yinda o'tkazib yuboriladi.
+                    «Qatnashish» tugmasini bossa, bot har kimga qaysi kanalga obuna emasligini aytadi.
+                  </p>
+                )}
+                <label className="flex items-start gap-2">
+                  <input type="checkbox" className="mt-0.5 accent-brand-500" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
+                  <span>Kanalga «yangi homiy qo'shildi, obuna bo'ling» xabarini yuborish</span>
+                </label>
+              </div>
             )}
           </div>
           <p className="text-xs text-zinc-500">Kanaldagi post ham yangilanadi.</p>

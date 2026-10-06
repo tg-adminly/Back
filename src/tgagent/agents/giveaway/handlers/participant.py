@@ -164,10 +164,13 @@ async def _try_join(bot: Bot, sm: async_sessionmaker, main_chat: ChatRef, giveaw
         if g.status != GiveawayStatus.ACTIVE or (g.auto_draw and g.ends_at <= utcnow()):
             return texts.GIVEAWAY_CLOSED, False
         existing = await service.get_participant(s, g.id, user.id)
-        if existing:
-            return texts.already_joined(existing.number), False
 
     missing = await missing_chats(bot, required_chats(g, main_chat), user.id)
+    if existing:
+        # Post hammaga bir xil — shaxsan kimga qaysi kanal yetishmasligini shu popup aytadi
+        if missing:
+            return texts.joined_but_missing(existing.number, [c.title for c in missing]), False
+        return texts.already_joined(existing.number), False
     if missing:
         return texts.not_subscribed([c.title for c in missing]), False
 

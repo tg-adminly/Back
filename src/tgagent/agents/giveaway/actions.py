@@ -109,6 +109,7 @@ async def update_giveaway(
     ends_at: datetime | None = None,
     auto_draw: bool | None = None,
     sponsor_ids: list[int] | None = None,
+    announce_sponsors: bool = False,
 ) -> str | None:
     """Faol rozigrishning vaqtini / aniqlash usulini / homiylarini o'zgartiradi va kanaldagi postni yangilaydi.
 
@@ -123,10 +124,13 @@ async def update_giveaway(
             g.reminded_at = None  # yangi vaqtda qayta eslatamiz
         if auto_draw is not None:
             g.auto_draw = auto_draw
+        added: list[SponsorChannel] = []
         if sponsor_ids is not None:
             found = (await s.scalars(select(SponsorChannel).where(SponsorChannel.id.in_(sponsor_ids)))).all()
             by_id = {sp.id: sp for sp in found}
+            before = {sp.id for sp in g.sponsors}
             g.sponsors = [by_id[i] for i in sponsor_ids if i in by_id]
+            added = [sp for sp in g.sponsors if sp.id not in before]
         await s.commit()
         count = await service.participants_count(s, g.id)
     if not g.message_id:
@@ -140,9 +144,17 @@ async def update_giveaway(
             reply_markup=kb.giveaway_post(sponsors, g.id, count, kb.participants_url(settings.panel_url, g.id)),
         )
     except TelegramAPIError as e:
-        if "not modified" in str(e):
-            return None
-        return texts.POST_EDIT_FAILED.format(error=escape(str(e)))
+        if "not modified" not in str(e):
+            return texts.POST_EDIT_FAILED.format(error=escape(str(e)))
+    if added and announce_sponsors:
+        try:
+            await bot.send_message(
+                g.chat_id,
+                texts.new_sponsors_post(g, [(sp.title, sp.link) for sp in added]),
+                reply_parameters=ReplyParameters(message_id=g.message_id, allow_sending_without_reply=True),
+            )
+        except TelegramAPIError as e:
+            return texts.POST_EDIT_FAILED.format(error=escape(str(e)))
     return None
 
 

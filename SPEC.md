@@ -34,7 +34,10 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
    - 🤖 **Avtomatik**: vaqti kelganda bot o'zi aniqlaydi va natijani kanalga tashlaydi (jonli o'yindagi qadamlarning o'zi:
      qayta tekshiruv → o'rinma-o'rin, chiqib ketganlar o'tkaziladi → e'lon). Xato bo'lsa — egasi/muharrirga jonli o'yin havolasi.
    Faol rozigrishda vaqt, usul va **homiylarni** (qo'shish/olib tashlash) o'zgartirish mumkin (panel «O'zgartirish») —
-   kanal posti ham yangilanadi. Yangi homiy qo'shilsa, oldin qatnashganlar ham unga obuna bo'lishi kerak (aks holda o'tkaziladi).
+   kanal posti ham yangilanadi. Yangi homiy qo'shilsa, oldin qatnashganlar ham unga obuna bo'lishi kerak (aks holda o'tkaziladi):
+   ixtiyoriy ravishda kanalga «yangi homiy qo'shildi» xabari (post'ga javob) ketadi. Post hammaga bir xil (Telegram tugmalarni
+   har kimga alohida ko'rsatmaydi), shuning uchun oldin qatnashgan odam «Qatnashish»ni bossa, popupda aynan u obuna
+   bo'lmagan kanallar chiqadi.
    Botdagi yaratishda ham ko'rib chiqish oynasida usulni almashtirish tugmasi bor.
 2. Bot har bir homiy kanalda admin bo'lishi shart (obunani tekshirish uchun) — bot buni oldindan tekshiradi.
    Yopiq kanal: Bot API `t.me/+...` linkdan kanalni topa olmaydi, shuning uchun bot admin qilingan kanallarni

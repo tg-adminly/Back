@@ -212,6 +212,26 @@ def already_joined(number: int) -> str:
     return f"✅ Siz allaqachon qatnashyapsiz. Raqamingiz: #{number}"
 
 
+def joined_but_missing(number: int, titles: list[str]) -> str:
+    """Oldin qatnashgan, lekin hozir obuna emas (chiqib ketgan yoki yangi homiy qo'shilgan)."""
+    text = (
+        f"⚠️ Siz ro'yxatdasiz (#{number}), lekin bu kanallarga obuna emassiz:\n"
+        + "\n".join(f"• {t}" for t in titles)
+        + "\n\nObuna bo'ling — aks holda o'yinda o'tkazib yuborilasiz."
+    )
+    return text if len(text) <= ALERT_LIMIT else text[: ALERT_LIMIT - 1] + "…"
+
+
+def new_sponsors_post(g: Giveaway, sponsors: list[tuple[str, str]]) -> str:
+    """sponsors: (nomi, havola)."""
+    links = "\n".join(f"• <a href=\"{escape(link)}\">{escape(title)}</a>" for title, link in sponsors)
+    return (
+        f"📢 <b>«{escape(g.title)}»</b> rozigrishiga yangi homiy qo'shildi:\n{links}\n\n"
+        "Avval qatnashganlar ham obuna bo'lishi shart — aks holda g'olib aniqlanishida o'tkazib yuboriladi. "
+        "Tekshirish uchun postdagi «🎁 Qatnashish» tugmasini bosing."
+    )
+
+
 def not_subscribed(titles: list[str]) -> str:
     text = "❌ Avval bu kanallarga obuna bo'ling, keyin qayta bosing:\n" + "\n".join(f"• {t}" for t in titles)
     return text if len(text) <= ALERT_LIMIT else text[: ALERT_LIMIT - 1] + "…"
@@ -294,7 +314,7 @@ def live_ready(g: Giveaway, total: int, excluded: int | None, live_url: str) -> 
     else:
         check = "🔄 Obuna qayta tekshirildi: hamma shartni bajargan ✅\n\n"
     return (
-        f"⏰ Rozigrish #{g.id} «{escape(g.title)}» vaqti keldi — qatnashish yopildi. Ishtirokchilar: {total}.\n"
+        f"⏹ Rozigrish #{g.id} «{escape(g.title)}» da qatnashish yopildi. Ishtirokchilar: {total}.\n"
         f"{check}"
         f"🎥 Jonli o'yinni boshlash (efirda ekranni ulashing):\n{live_url}"
     )
