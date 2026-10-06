@@ -35,6 +35,7 @@ from tgagent.channels.telegram_bot.chats import ChatRef
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
 from tgagent.core.db import utcnow
+from tgagent.core.llm import LLM
 from tgagent.panel import auth
 from tgagent.panel import texts as ptexts
 
@@ -53,6 +54,7 @@ class Deps:
     vault: Vault
     main_chat: ChatRef
     logins: auth.LoginRequests
+    llm: LLM | None = None  # kontent agenti (AI); yo'q bo'lsa — AI bo'limlari xato qaytaradi
 
 
 def deps(request: Request) -> Deps:

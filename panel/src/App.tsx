@@ -11,19 +11,23 @@ import LiveDraw from './pages/LiveDraw'
 import PublicList from './pages/PublicList'
 import Payouts from './pages/Payouts'
 import Sponsors from './pages/Sponsors'
+import Content from './pages/Content'
 
 const NAV = [
   { to: '/', label: 'Bosh sahifa', icon: '🏠', end: true },
   { to: '/giveaways', label: 'Rozigrishlar', icon: '🎁' },
   { to: '/payouts', label: "To'lovlar", icon: '💳' },
   { to: '/sponsors', label: 'Homiylar', icon: '📣' },
+  { to: '/content', label: 'Kontent', icon: '📝' },
 ]
-// Muharrir: rozigrishlarni ko'radi va jonli o'yinni o'tkazadi (to'lov, homiy, yangi rozigrish — faqat egasi)
-const EDITOR_NAV = [{ to: '/giveaways', label: 'Rozigrishlar', icon: '🎁', end: false }]
+// Muharrir: kontent, rozigrishlarni ko'radi va jonli o'yinni o'tkazadi (to'lov, homiy, yangi rozigrish — faqat egasi)
+const EDITOR_NAV = [
+  { to: '/content', label: 'Kontent', icon: '📝', end: false },
+  { to: '/giveaways', label: 'Rozigrishlar', icon: '🎁', end: false },
+]
 const SOON = [
   { label: 'CRM (reklama)', icon: '🤝' },
   { label: 'AI suhbatlar', icon: '💬' },
-  { label: 'Kontent', icon: '📝' },
 ]
 
 export default function App() {
@@ -124,21 +128,28 @@ function Shell({ me }: { me: Me }) {
               <Route path="/giveaways/:id" element={<GiveawayView />} />
               <Route path="/payouts" element={<Payouts />} />
               <Route path="/sponsors" element={<Sponsors />} />
+              <Route path="/content" element={<Content />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (
             <Routes>
               <Route path="/giveaways" element={<Giveaways />} />
               <Route path="/giveaways/:id" element={<GiveawayView />} />
-              <Route path="*" element={<Navigate to="/giveaways" replace />} />
+              <Route path="/content" element={<Content />} />
+              <Route path="*" element={<Navigate to="/content" replace />} />
             </Routes>
           )}
         </main>
 
         {/* Telefon: pastki menyu */}
-        {me.role === 'owner' && (
-          <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-zinc-200 bg-white md:hidden dark:border-zinc-800 dark:bg-zinc-900">
-            {NAV.map((n) => (
+        {nav.length > 1 && (
+          <nav
+            className={cx(
+              'fixed inset-x-0 bottom-0 z-40 grid border-t border-zinc-200 bg-white md:hidden dark:border-zinc-800 dark:bg-zinc-900',
+              nav.length === 5 ? 'grid-cols-5' : 'grid-cols-2',
+            )}
+          >
+            {nav.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}

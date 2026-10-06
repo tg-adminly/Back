@@ -47,8 +47,10 @@ def make_sessionmaker(engine: AsyncEngine) -> async_sessionmaker:
 
 async def init_db(engine: AsyncEngine) -> None:
     # Modellar Base.metadata ga ro'yxatdan o'tishi uchun import qilinadi
+    import tgagent.agents.content.models  # noqa: F401
     import tgagent.agents.giveaway.models  # noqa: F401
     import tgagent.channels.telegram_bot.models  # noqa: F401
+    import tgagent.core.llm  # noqa: F401
     import tgagent.panel.models  # noqa: F401
 
     async with engine.begin() as conn:

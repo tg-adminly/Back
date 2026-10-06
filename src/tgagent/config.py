@@ -21,8 +21,16 @@ class Settings(BaseSettings):
     panel_port: int = 8080
     panel_url: str = "http://localhost:8080"  # botdagi havolalar uchun; domen ulangach https://...
 
-    # Keyingi bosqichlar uchun
+    # AI (kontent agenti). Narxlar — 1 mln token uchun $, modelga qarab .env da o'zgartiring
     openai_api_key: str | None = None
+    llm_model: str = "gpt-5-mini"
+    llm_reasoning: str | None = "low"  # reasoning modellar uchun: minimal/low/medium; bo'sh — yuborilmaydi
+    llm_price_in: float = 0.25
+    llm_price_out: float = 2.0
+    llm_monthly_limit: float = 20.0
+    media_dir: str = "data/media"  # yuklangan rasmlar
+
+    # Keyingi bosqichlar uchun
     tg_api_id: int | None = None
     tg_api_hash: str | None = None
 
@@ -33,7 +41,7 @@ class Settings(BaseSettings):
             return [int(x) for x in v.replace(" ", "").split(",") if x]
         return v
 
-    @field_validator("openai_api_key", "tg_api_hash", "tg_api_id", mode="before")
+    @field_validator("openai_api_key", "llm_reasoning", "tg_api_hash", "tg_api_id", mode="before")
     @classmethod
     def _empty_to_none(cls, v: object) -> object:
         return None if v == "" else v

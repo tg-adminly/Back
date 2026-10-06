@@ -14,12 +14,18 @@ from tgagent.channels.telegram_bot.chats import ChatRef, bot_is_admin, chat_link
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
 from tgagent.core.db import init_db, make_engine, make_sessionmaker
+from tgagent.core.llm import LLM
 from tgagent.panel import bot_login
 from tgagent.panel.api import Deps
 from tgagent.panel.auth import LoginRequests
 from tgagent.panel.server import create_app, make_server, serve_panel
 
 log = logging.getLogger("tgagent")
+
+LLM_LIMIT_NOTICE = (
+    "⚠️ Bu oylik AI limiti (${limit:.2f}) tugadi — kontent agenti to'xtadi.\n"
+    "Davom ettirish uchun .env dagi LLM_MONTHLY_LIMIT ni oshirib, botni qayta ishga tushiring."
+)
 
 
 async def main() -> None:
@@ -55,7 +61,15 @@ async def main() -> None:
     dp.include_router(editor.build_router(settings))
     dp.include_router(participant.build_router(settings))
 
-    app = create_app(Deps(settings, bot, sm, vault, main_chat, logins))
+    async def llm_limit_reached():
+        for uid in settings.owner_ids:
+            await bot.send_message(uid, LLM_LIMIT_NOTICE.format(limit=settings.llm_monthly_limit))
+
+    llm = LLM(settings, sm, on_limit=llm_limit_reached)
+    if not llm.enabled:
+        log.warning("OPENAI_API_KEY yo'q — kontent agenti (AI) o'chiq")
+
+    app = create_app(Deps(settings, bot, sm, vault, main_chat, logins, llm))
     panel = make_server(app, settings.panel_host, settings.panel_port)
     panel_task = asyncio.create_task(serve_panel(panel))
     log.info("Panel: %s", settings.panel_url)

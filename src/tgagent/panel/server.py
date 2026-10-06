@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from tgagent.panel import content_api
 from tgagent.panel.api import Deps, router
 
 log = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ def create_app(deps: Deps, dist: Path = DIST) -> FastAPI:
     app = FastAPI(title="TG Agent Q panel", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.deps = deps
     app.include_router(router)
+    app.include_router(content_api.router)
 
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")

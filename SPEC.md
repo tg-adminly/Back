@@ -105,13 +105,46 @@ Ishonchli, arzon, xato qilmaydi. **G'olibni AI aniqlamaydi — botning random fu
 
 **Agent hech qachon pul o'tkazmaydi va to'lov tizimlariga ulanmaydi.**
 
-## Oqim 3 — Kontent
+## Oqim 3 — Kontent (2-bosqich)
 
-1. Agent jadval bo'yicha post qoralamasi yozadi (o'zbek, lotin).
-2. Editor admin-botda: ✅ Tasdiqlash / ✏️ Tahrirlash / ❌ Rad.
-3. Editor agentga uslub bo'yicha ko'rsatmalar beradi → **uslub qo'llanma** sifatida saqlanadi
-   va har bir post yozilganda ishlatiladi.
-4. Boshida hamma post tasdiqdan o'tadi.
+Maqsad: agent kanal uslubida post yozadi, Editor tasdiqlaydi, bot vaqtida chiqaradi.
+Agent ishlagan sari o'rganadi. **Hamma post tasdiqdan o'tadi** (avto rejimda ham).
+
+### Agent bilimi
+- **Uslub qo'llanma** — agentning o'zi uchun yozgan umumiy qoidalari (ohang, uzunlik, emoji, tuzilish,
+  mavzular, nima qilinmaydi). Har o'zgarish versiya sifatida saqlanadi, Editor ko'radi, qo'lda tuzatadi, eski versiyaga qaytaradi.
+- **Namunalar kutubxonasi** — o'qitish uchun postlar: matn + rasm (yoki rasm tavsifi) + manba
+  (o'z kanalimiz / boshqa kanal) + agentning qisqa tahlili.
+
+### O'qitish chati (panel)
+- Editor/Owner AI bilan chat ko'rinishida gaplashadi: postlarni (10–20 ta, matn va rasm) tashlaydi, izoh beradi.
+- Agent tahlil qiladi va «qo'llanmaga shu qoidalarni qo'shaman» deb taklif qiladi → ✅ Qabul / ✏️ Tuzat / ❌ Yo'q.
+  Qo'llanma faqat tasdiqlangandan keyin o'zgaradi.
+- Rasmlar: AI rasmni o'zi ko'radi (vision), xohlasa Editor tavsif yozadi. Rasmni agent **yaratmaydi**.
+
+- Holati (2026-10-07): **o'qitish chati, qo'llanma (versiyalar, farq ko'rinishi, qaytarish), namunalar — tayyor** (panel «📝 Kontent»).
+  Namunalar chatda yig'iladi, «🔍 Tahlil qilish» bosilganda agent hammasini birga ko'radi (rasm — arzon «low» sifatda).
+
+### O'z kanalimizni o'qish
+- Bot kanalda admin — yangi chiqqan har bir post (qo'lda yozilganlar ham) avtomatik namunaga tushadi.
+- Bot API eski tarixni o'qiy olmaydi. Eski postlar: botga forward qilish yoki Telegram Desktop eksporti (JSON) ni panelga yuklash.
+  Keyinchalik userbot (3-bosqich) tarixni o'zi o'qiydi.
+
+### Qoralama → tasdiq → chiqish
+1. Editor mavzu/rasm beradi yoki agent o'zi mavzu tanlaydi → agent qoralama yozadi.
+2. Holatlar: `qoralama → tasdiqlandi (vaqt bilan) → chiqdi`, yoki `rad`.
+3. Editor: ✅ Tasdiqlash (hozir yoki vaqtga) / ✏️ Tahrirlash / 🔁 Izoh bilan qayta yozdirish / ❌ Rad.
+4. Rasmni asosan Editor yuklaydi. Rasmli postda matn ≤ 1024 belgi (Telegram cheklovi) — agent shunga moslab yozadi.
+5. **O'rganish:** Editor tuzatgan/rad etgan qoralamalardan agent saboq chiqaradi va qo'llanmaga o'zgarish taklif qiladi (tasdiq bilan).
+
+### Jadval
+- **Avto rejim:** kuniga N–M ta post, vaqt oralig'i (masalan 09:00–21:00). Agent oldindan qoralamalar tayyorlaydi,
+  Editorga bildirishnoma ketadi; tasdiqlanmagan qoralama chiqmaydi.
+- **Qo'lda rejim:** agent o'zi yozmaydi, Editor so'raganda qoralama yozadi.
+
+### LLM va xarajat
+- `core/llm.py` — provider qatlami (hozir OpenAI, model `.env` da). Har so'rov tokenlari va narxi hisoblanadi.
+- Oylik limit (standart $20). Limit tugasa AI to'xtaydi, Owner'ga xabar boradi; panelda sarflangan summa ko'rinadi.
 
 ## Boshqaruv paneli (CRM sayt, keyin Mini App)
 

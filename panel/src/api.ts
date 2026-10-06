@@ -34,6 +34,7 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
 }
 
@@ -166,4 +167,48 @@ export interface PublicGiveaway {
   post_url: string | null
   participants: { number: number; name: string; missing: string[] }[]
   winners: { place: number; number: number; name: string; prize: Prize }[]
+}
+
+// --- Kontent agenti ---
+
+export interface AiUsage {
+  enabled: boolean
+  model: string
+  limit: number
+  month_cost: number
+}
+
+export interface Sample {
+  id: number
+  source: 'own' | 'other'
+  source_name: string | null
+  text: string
+  image: string | null // /api/content/media/...
+  image_note: string | null
+  image_desc: string | null // agent rasmda nimani ko'rdi
+  analysis: string | null // null — hali tahlil qilinmagan
+  added_by: string
+  created_at: string
+}
+
+export type ProposalStatus = 'pending' | 'accepted' | 'rejected' | 'superseded'
+export interface TrainMessage {
+  id: number
+  role: 'user' | 'assistant'
+  author: string
+  text: string
+  sample: Sample | null
+  sample_deleted: boolean
+  proposal: string | null // qo'llanmaning taklif qilingan to'liq matni
+  proposal_note: string | null
+  proposal_status: ProposalStatus | null
+  created_at: string
+}
+
+export interface GuideVersion {
+  id: number
+  text: string
+  note: string | null
+  author: string
+  created_at: string
 }

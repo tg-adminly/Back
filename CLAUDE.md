@@ -22,13 +22,14 @@ docker compose up -d --build     # VPS'da ishga tushirish
 src/tgagent/
   config.py              # .env sozlamalari (pydantic-settings)
   __main__.py            # kirish nuqtasi: bot + fon vazifalar
-  core/                  # hamma agentlar uchun umumiy: db, shifrlash
+  core/                  # hamma agentlar uchun umumiy: db, shifrlash, llm (AI + xarajat limiti)
   channels/telegram_bot/ # Bot API yordamchilari (obuna tekshiruvi, chat linklari)
   agents/giveaway/       # 1-agent: rozigrish
     draw.py              # tekshirsa bo'ladigan random (sof funksiyalar, LLM yo'q)
     models.py, service.py, jobs.py, texts.py, handlers/
     actions.py           # Telegram'ga tegadigan egasi amallari (bot menyusi va panel umumiy)
-  panel/                 # veb-panel backend: FastAPI API, botda kirishni tasdiqlash
+  agents/content/        # 2-agent qismi: kontent (o'qitish chati, uslub qo'llanma, namunalar)
+  panel/                 # veb-panel backend: FastAPI API (content_api.py — kontent), botda kirishni tasdiqlash
 panel/                   # veb-panel frontend: React + Vite + Tailwind (yig'ilgani panel/dist)
 tests/
 ```
@@ -37,6 +38,7 @@ Keyingi agentlar (frilans va h.k.) `agents/<nom>/` ichida, `core/` dan foydalana
 
 ## Qat'iy qoidalar
 
+- **AI faqat `core/llm.py` orqali** (har so'rov narxi yoziladi, oylik limit). Post kanalga faqat xodim tasdiqlagandan keyin chiqadi.
 - **G'olibni faqat `draw.py` aniqlaydi.** Rozigrish mantig'ida LLM ishlatilmaydi.
 - **Agent pul o'tkazmaydi**, to'lov tizimlariga ulanmaydi. To'lovni egasi qiladi, "To'landi" bosadi, chekni yuklaydi.
 - **Userbot** (3-bosqich) faqat egasi qo'shgan kontaktlarga, limit bilan yozadi. Egasining shaxsiy akkaunti ishlatilmaydi.
