@@ -31,6 +31,7 @@ export default function GiveawayView() {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [editingSponsors, setEditingSponsors] = useState(false)
   const g = useQuery({
     queryKey: ['giveaway', id],
     queryFn: () => api.get<GiveawayDetail>(`/giveaways/${id}`),
@@ -84,9 +85,14 @@ export default function GiveawayView() {
           {d.status === 'active' && (
             <>
               {isOwner && (
-                <Button variant="secondary" onClick={() => setEditing(true)}>
-                  ✏️ O'zgartirish
-                </Button>
+                <>
+                  <Button variant="secondary" onClick={() => setEditing(true)}>
+                    ✏️ O'zgartirish
+                  </Button>
+                  <Button variant="secondary" onClick={() => setEditingSponsors(true)}>
+                    📣 Homiylar
+                  </Button>
+                </>
               )}
               {d.auto_draw && (
                 <ConfirmButton
@@ -109,6 +115,7 @@ export default function GiveawayView() {
       <ErrorBox error={action.error} />
       {editing && <EditModal d={d} onClose={() => setEditing(false)} />}
       {cancelling && <CancelModal d={d} onClose={() => setCancelling(false)} />}
+      {editingSponsors && <SponsorsModal d={d} onClose={() => setEditingSponsors(false)} />}
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
@@ -167,7 +174,14 @@ export default function GiveawayView() {
           <Card>
             <h2 className="mb-2 font-semibold">📝 Post matni</h2>
             <p className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{d.description}</p>
-            <h3 className="mt-4 mb-1 text-sm font-medium">Homiylar</h3>
+            <div className="mt-4 mb-1 flex items-center justify-between">
+              <h3 className="text-sm font-medium">Homiylar</h3>
+              {isOwner && d.status === 'active' && (
+                <button onClick={() => setEditingSponsors(true)} className="text-xs text-brand-600 hover:underline">
+                  + Homiy qo'shish
+                </button>
+              )}
+            </div>
             {d.sponsors.length ? (
               <ul className="space-y-0.5 text-sm">
                 {d.sponsors.map((s) => (
@@ -210,21 +224,12 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
   const [autoDraw, setAutoDraw] = useState(d.auto_draw)
   const initialEndsAt = toLocalInput(d.ends_at, me.timezone)
   const [endsAt, setEndsAt] = useState(initialEndsAt)
-  const [sponsorIds, setSponsorIds] = useState(() => d.sponsors.map((s) => s.id))
-  const [addingSponsor, setAddingSponsor] = useState(false)
-  const [announce, setAnnounce] = useState(true)
-  const sponsors = useQuery({ queryKey: ['sponsors'], queryFn: () => api.get<Sponsor[]>('/sponsors') })
-  const known = new Map([...d.sponsors, ...(sponsors.data ?? [])].map((s) => [s.id, s]))
-  const chosen = sponsorIds.map((sid) => known.get(sid)).filter((s): s is Sponsor => !!s)
-  const added = sponsorIds.some((sid) => !d.sponsors.some((s) => s.id === sid))
   const save = useMutation({
     // Vaqt o'zgarmagan bo'lsa yubormaymiz (tekshiruv faqat yangi vaqt uchun)
     mutationFn: () =>
       api.patch<{ warning: string | null }>(`/giveaways/${d.id}`, {
         auto_draw: autoDraw,
         ends_at: endsAt === initialEndsAt ? null : endsAt,
-        sponsor_ids: sponsorIds,
-        announce_sponsors: added && announce,
       }),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['giveaway', String(d.id)] })
@@ -237,12 +242,7 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
   return (
     <Modal title="Rozigrishni o'zgartirish" onClose={onClose}>
       {save.data?.warning ? (
-        <>
-          <p className="mb-5 text-sm">⚠️ {save.data.warning}</p>
-          <div className="text-right">
-            <Button onClick={onClose}>Yopish</Button>
-          </div>
-        </>
+        <WarningBody text={save.data.warning} onClose={onClose} />
       ) : (
         <div className="space-y-4">
           <div>
@@ -252,18 +252,58 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
           <Field label={endsAtLabel(autoDraw)} error={fieldErrors.ends_at}>
             <input type="datetime-local" className={inputClass} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
           </Field>
+          <p className="text-xs text-zinc-500">Kanaldagi post ham yangilanadi.</p>
+          {!fieldErrors.ends_at && <ErrorBox error={save.error} />}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Bekor
+            </Button>
+            <Button disabled={save.isPending} onClick={() => save.mutate()}>
+              {save.isPending ? 'Saqlanmoqda…' : 'Saqlash'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+/** Faol rozigrish homiylari: qo'shish / olib tashlash (kanal posti yangilanadi, ixtiyoriy e'lon) */
+function SponsorsModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [sponsorIds, setSponsorIds] = useState(() => d.sponsors.map((s) => s.id))
+  const [addingSponsor, setAddingSponsor] = useState(false)
+  const [announce, setAnnounce] = useState(true)
+  const sponsors = useQuery({ queryKey: ['sponsors'], queryFn: () => api.get<Sponsor[]>('/sponsors') })
+  const known = new Map([...d.sponsors, ...(sponsors.data ?? [])].map((s) => [s.id, s]))
+  const chosen = sponsorIds.map((sid) => known.get(sid)).filter((s): s is Sponsor => !!s)
+  const added = sponsorIds.some((sid) => !d.sponsors.some((s) => s.id === sid))
+  const changed = added || sponsorIds.length !== d.sponsors.length
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch<{ warning: string | null }>(`/giveaways/${d.id}`, { sponsor_ids: sponsorIds, announce_sponsors: added && announce }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['giveaway', String(d.id)] })
+      qc.invalidateQueries({ queryKey: ['participants', d.id] })
+      if (!r.warning) onClose()
+    },
+  })
+
+  return (
+    <Modal title="Homiy kanallar" onClose={onClose}>
+      {save.data?.warning ? (
+        <WarningBody text={save.data.warning} onClose={onClose} />
+      ) : (
+        <div className="space-y-4">
           <div>
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-sm font-medium">Homiy kanallar</span>
-              <Button variant="ghost" onClick={() => setAddingSponsor(true)}>
-                + Qo'shish
-              </Button>
-            </div>
             {chosen.length ? (
               <div className="space-y-0.5">
                 {chosen.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-1">
-                    <div className="min-w-0 flex-1 truncate text-sm">{s.title}</div>
+                  <div key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">{s.title}</div>
+                      <div className="truncate text-xs text-zinc-400">{s.link}</div>
+                    </div>
                     <button
                       type="button"
                       className="text-lg leading-none text-zinc-400 hover:text-red-600"
@@ -276,30 +316,33 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
                 ))}
               </div>
             ) : (
-              <div className="px-2 text-sm text-zinc-500">Homiysiz</div>
+              <div className="px-2 text-sm text-zinc-500">Homiy yo'q — faqat bizning kanal shart.</div>
             )}
-            {added && (
-              <div className="mt-2 space-y-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                {d.participants > 0 && (
-                  <p>
-                    ⚠️ Avval qatnashgan {d.participants} kishi ham yangi homiyga obuna bo'lishi kerak — aks holda o'yinda o'tkazib yuboriladi.
-                    «Qatnashish» tugmasini bossa, bot har kimga qaysi kanalga obuna emasligini aytadi.
-                  </p>
-                )}
-                <label className="flex items-start gap-2">
-                  <input type="checkbox" className="mt-0.5 accent-brand-500" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
-                  <span>Kanalga «yangi homiy qo'shildi, obuna bo'ling» xabarini yuborish</span>
-                </label>
-              </div>
-            )}
+            <Button variant="secondary" className="mt-2 w-full" onClick={() => setAddingSponsor(true)}>
+              + Homiy qo'shish
+            </Button>
           </div>
-          <p className="text-xs text-zinc-500">Kanaldagi post ham yangilanadi.</p>
-          {!fieldErrors.ends_at && <ErrorBox error={save.error} />}
+          {added && (
+            <div className="space-y-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              {d.participants > 0 && (
+                <p>
+                  ⚠️ Avval qatnashgan {d.participants} kishi ham yangi homiyga obuna bo'lishi kerak — aks holda o'yinda o'tkazib yuboriladi.
+                  Saqlangach bot hammani tekshiradi, obuna bo'lmaganlar ishtirokchilar ro'yxatida ko'rinadi.
+                </p>
+              )}
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-0.5 accent-brand-500" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
+                <span>Kanalga «yangi homiy qo'shildi, obuna bo'ling» xabarini yuborish</span>
+              </label>
+            </div>
+          )}
+          <p className="text-xs text-zinc-500">Kanaldagi post tugmalari ham yangilanadi.</p>
+          <ErrorBox error={save.error} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
               Bekor
             </Button>
-            <Button disabled={save.isPending} onClick={() => save.mutate()}>
+            <Button disabled={!changed || save.isPending} onClick={() => save.mutate()}>
               {save.isPending ? 'Saqlanmoqda…' : 'Saqlash'}
             </Button>
           </div>
@@ -317,6 +360,17 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
         </Modal>
       )}
     </Modal>
+  )
+}
+
+function WarningBody({ text, onClose }: { text: string; onClose: () => void }) {
+  return (
+    <>
+      <p className="mb-5 text-sm">⚠️ {text}</p>
+      <div className="text-right">
+        <Button onClick={onClose}>Yopish</Button>
+      </div>
+    </>
   )
 }
 

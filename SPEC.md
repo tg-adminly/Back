@@ -33,7 +33,7 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
      O'yinni istalgan paytda (vaqtdan oldin ham, keyin ham) jonli sahifadagi «Qatnashishni yopib, o'yinni boshlash» bilan boshlaydi;
    - 🤖 **Avtomatik**: vaqti kelganda bot o'zi aniqlaydi va natijani kanalga tashlaydi (jonli o'yindagi qadamlarning o'zi:
      qayta tekshiruv → o'rinma-o'rin, chiqib ketganlar o'tkaziladi → e'lon). Xato bo'lsa — egasi/muharrirga jonli o'yin havolasi.
-   Faol rozigrishda vaqt, usul va **homiylarni** (qo'shish/olib tashlash) o'zgartirish mumkin (panel «O'zgartirish») —
+   Faol rozigrishda vaqt va usulni («✏️ O'zgartirish»), **homiylarni** (alohida «📣 Homiylar» tugmasi: qo'shish/olib tashlash) o'zgartirish mumkin —
    kanal posti ham yangilanadi. Yangi homiy qo'shilsa, oldin qatnashganlar ham unga obuna bo'lishi kerak (aks holda o'tkaziladi):
    ixtiyoriy ravishda kanalga «yangi homiy qo'shildi» xabari (post'ga javob) ketadi. Post hammaga bir xil (Telegram tugmalarni
    har kimga alohida ko'rsatmaydi), shuning uchun oldin qatnashgan odam «Qatnashish»ni bossa, popupda aynan u obuna
