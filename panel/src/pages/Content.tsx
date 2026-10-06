@@ -10,6 +10,7 @@ const TABS = [
   { key: 'samples', label: '🖼 Namunalar' },
 ] as const
 type Tab = (typeof TABS)[number]['key']
+const MAX_ALBUM = 10 // Telegram albomi
 
 export default function Content() {
   const [params, setParams] = useSearchParams()
@@ -316,19 +317,21 @@ function Composer({ sending, onSend }: { sending: boolean; onSend: (text: string
 function SampleForm() {
   const qc = useQueryClient()
   const [text, setText] = useState('')
-  const [image, setImage] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [images, setImages] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
   const [note, setNote] = useState('')
   const [own, setOwn] = useState(false)
   const [sourceName, setSourceName] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!image) return setPreview(null)
-    const url = URL.createObjectURL(image)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [image])
+    const urls = images.map((f) => URL.createObjectURL(f))
+    setPreviews(urls)
+    return () => urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [images])
+
+  // Telegram albomi kabi: 10 tagacha, qo'shilgan tartibda
+  const addImages = (files: File[]) => setImages((prev) => [...prev, ...files.filter((f) => f.type.startsWith('image/'))].slice(0, MAX_ALBUM))
 
   const add = useMutation({
     mutationFn: () => {
@@ -337,13 +340,13 @@ function SampleForm() {
       form.append('source', own ? 'own' : 'other')
       form.append('source_name', own ? '' : sourceName)
       form.append('image_note', note)
-      if (image) form.append('image', image)
+      images.forEach((f) => form.append('images', f))
       return api.post<TrainMessage>('/content/chat/sample', form)
     },
     onSuccess: () => {
       // Manba qoladi — bir kanaldan ketma-ket bir nechta post qo'shiladi
       setText('')
-      setImage(null)
+      setImages([])
       setNote('')
       if (fileInput.current) fileInput.current.value = ''
       qc.invalidateQueries({ queryKey: ['train-chat'] })
@@ -352,10 +355,10 @@ function SampleForm() {
   })
 
   const onPaste = (e: ClipboardEvent) => {
-    const file = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'))
-    if (file) {
+    const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
+    if (files.length) {
       e.preventDefault()
-      setImage(file)
+      addImages(files)
     }
   }
 
@@ -367,32 +370,60 @@ function SampleForm() {
         add.mutate()
       }}
     >
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => fileInput.current?.click()}
-          className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 text-center text-xs text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
-        >
-          {preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <span>🖼<br />Rasm</span>}
-        </button>
-        <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={(e) => setImage(e.target.files?.[0] ?? null)} />
-        <textarea
-          className={inputClass}
-          rows={4}
-          maxLength={5000}
-          placeholder="Post matni (rasmni shu yerga Ctrl+V bilan qo'yish ham mumkin)"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onPaste={onPaste}
+      <textarea
+        className={inputClass}
+        rows={4}
+        maxLength={5000}
+        placeholder="Post matni (rasmlarni shu yerga Ctrl+V bilan qo'yish ham mumkin)"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onPaste={onPaste}
+      />
+      <div className="flex flex-wrap gap-2">
+        {previews.map((url, k) => (
+          <div key={url} className="relative h-20 w-20 overflow-hidden rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-700">
+            <img src={url} alt="" className="h-full w-full object-cover" />
+            <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] text-white">{k + 1}</span>
+            <button
+              type="button"
+              aria-label="Olib tashlash"
+              onClick={() => setImages(images.filter((_, i) => i !== k))}
+              className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-red-600"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        {images.length < MAX_ALBUM && (
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="flex h-20 w-20 flex-col items-center justify-center rounded-lg bg-zinc-100 text-xs text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
+          >
+            <span className="text-lg">🖼</span>
+            {images.length ? '+ Yana' : 'Rasmlar'}
+          </button>
+        )}
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            addImages([...(e.target.files ?? [])])
+            e.target.value = ''
+          }}
         />
       </div>
-      {image && (
-        <div className="flex items-center gap-2">
-          <input className={inputClass} placeholder="Rasm tavsifi (ixtiyoriy) — masalan: «qizil fonda atir, gul barglari»" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
-          <button type="button" className="shrink-0 text-xs text-zinc-500 hover:text-red-600" onClick={() => setImage(null)}>
-            Rasmni olib tashlash
-          </button>
-        </div>
+      {images.length > 0 && (
+        <input
+          className={inputClass}
+          placeholder="Rasmlar tavsifi (ixtiyoriy) — masalan: «qizil fonda atir, gul barglari»"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={1000}
+        />
       )}
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm">
@@ -400,7 +431,7 @@ function SampleForm() {
           O'z kanalimizdan
         </label>
         {!own && <input className={cx(inputClass, 'sm:max-w-60')} placeholder="Qaysi kanaldan (ixtiyoriy)" value={sourceName} onChange={(e) => setSourceName(e.target.value)} maxLength={255} />}
-        <Button type="submit" className="ml-auto" disabled={add.isPending || (!text.trim() && !image)}>
+        <Button type="submit" className="ml-auto" disabled={add.isPending || (!text.trim() && !images.length)}>
           {add.isPending ? 'Qo\'shilmoqda…' : 'Qo\'shish'}
         </Button>
       </div>
@@ -414,7 +445,7 @@ function SampleCard({ s, compact, onDelete }: { s: Sample; compact?: boolean; on
   const source = s.source === 'own' ? "🏠 O'z kanalimiz" : `📣 ${s.source_name || 'Boshqa kanal'}`
   return (
     <Card className="overflow-hidden p-0">
-      {s.image && <img src={s.image} alt="" className={cx('w-full object-cover', compact ? 'max-h-56' : 'max-h-72')} loading="lazy" />}
+      <Album images={s.images} compact={compact} />
       <div className="space-y-2 p-3 text-sm">
         <div className="flex items-center justify-between gap-2 text-xs text-zinc-500">
           <span className="truncate">{source}</span>
@@ -442,6 +473,30 @@ function SampleCard({ s, compact, onDelete }: { s: Sample; compact?: boolean; on
         </div>
       </div>
     </Card>
+  )
+}
+
+/** Telegram albomidek: 1 ta — to'liq, ko'p bo'lsa to'r (4 tadan ortig'i «+N») */
+function Album({ images, compact }: { images: string[]; compact?: boolean }) {
+  if (!images.length) return null
+  if (images.length === 1)
+    return (
+      <a href={images[0]} target="_blank" rel="noreferrer">
+        <img src={images[0]} alt="" className={cx('w-full object-cover', compact ? 'max-h-56' : 'max-h-72')} loading="lazy" />
+      </a>
+    )
+  const shown = images.slice(0, 4)
+  return (
+    <div className={cx('grid gap-0.5', shown.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+      {shown.map((url, k) => (
+        <a key={url} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square">
+          <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
+          {k === 3 && images.length > 4 && (
+            <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xl font-semibold text-white">+{images.length - 4}</span>
+          )}
+        </a>
+      ))}
+    </div>
   )
 }
 

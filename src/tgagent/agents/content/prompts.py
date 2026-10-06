@@ -19,8 +19,11 @@ The editor will accept or reject it. If nothing should change, return null for b
 Do not propose a change just to rephrase — only when you learned something new or the editor asked.
 Editor's direct instructions have priority over patterns from samples.
 
-For every new sample listed in the message, return an entry in `samples`: its id, a short description of the photo
-(empty string if there is no photo) and a 2–4 sentence analysis.
+A post can have several photos (a Telegram album) — the text is the caption of the whole album.
+Note how many photos posts use and how they work together.
+
+For every new sample listed in the message, return an entry in `samples`: its id, a short description of the photo(s)
+(empty string if there are no photos) and a 2–4 sentence analysis.
 
 Write EVERYTHING (reply, guide, notes, analyses) in Uzbek, Latin script.
 Format `reply` as plain text (no Markdown headings); the guide may use simple «- » bullet lists and lines ending with «:» as section titles.
@@ -55,10 +58,15 @@ def guide_block(text: str | None) -> str:
     return f"CURRENT STYLE GUIDE:\n{text}" if text else "CURRENT STYLE GUIDE: (empty — nothing learned yet)"
 
 
-def sample_block(sample_id: int, source: str, text: str, image_note: str | None, has_image: bool) -> str:
+def sample_block(sample_id: int, source: str, text: str, image_note: str | None, photos: int) -> str:
     parts = [f"--- NEW SAMPLE #{sample_id} ({source}) ---"]
-    parts.append("[photo attached below]" if has_image else "[no photo]")
+    if photos == 1:
+        parts.append("[1 photo attached below]")
+    elif photos:
+        parts.append(f"[album of {photos} photos attached below, in post order]")
+    else:
+        parts.append("[no photo]")
     if image_note:
-        parts.append(f"Editor's description of the photo: {image_note}")
+        parts.append(f"Editor's description of the photos: {image_note}")
     parts.append(text or "(no text)")
     return "\n".join(parts)

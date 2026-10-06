@@ -183,9 +183,9 @@ export interface Sample {
   source: 'own' | 'other'
   source_name: string | null
   text: string
-  image: string | null // /api/content/media/...
+  images: string[] // /api/content/media/..., post tartibida (albom — 10 tagacha)
   image_note: string | null
-  image_desc: string | null // agent rasmda nimani ko'rdi
+  image_desc: string | null // agent rasm(lar)da nimani ko'rdi
   analysis: string | null // null — hali tahlil qilinmagan
   added_by: string
   created_at: string

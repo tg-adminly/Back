@@ -32,10 +32,10 @@ async def save_guide(session: AsyncSession, text: str, note: str | None, author:
 
 
 async def add_sample(session: AsyncSession, *, text: str, author: str, source: SampleSource = SampleSource.OTHER,
-                     source_name: str | None = None, image: str | None = None, image_note: str | None = None,
+                     source_name: str | None = None, images: list[str] | None = None, image_note: str | None = None,
                      chat_id: int | None = None, message_id: int | None = None) -> TrainMessage:
     """Namuna qo'shadi va chatda ko'rsatadi. Agent hali javob bermaydi — xodim «tahlil qil» deguncha yig'iladi."""
-    sample = Sample(source=source, source_name=source_name, text=text.strip(), image=image,
+    sample = Sample(source=source, source_name=source_name, text=text.strip(), images=images or [],
                     image_note=(image_note or "").strip() or None, chat_id=chat_id, message_id=message_id,
                     added_by=author)
     session.add(sample)
@@ -64,7 +64,7 @@ def _history_text(m: TrainMessage) -> str:
             return "[sample post — deleted]"
         head = f"[sample post #{s.id} from {s.source_name or s.source}]"
         body = (s.text or "(no text)")[:500]
-        extra = f"\nPhoto: {s.image_desc}" if s.image_desc else ""
+        extra = f"\nPhotos ({len(s.images)}): {s.image_desc}" if s.image_desc else ""
         return f"{head}\n{body}{extra}"
     text = m.text
     if m.proposal_status:
@@ -91,10 +91,9 @@ async def reply(sm: async_sessionmaker, llm: LLM, *, channel: str, author: str, 
                 continue  # yangilari pastda rasmi bilan beriladi
             messages.append(Msg("assistant" if m.role == "assistant" else "user", _history_text(m)))
         for x in new:
-            data = media.read_image(media_dir, x.image) if x.image else None
+            photos = [Image(data) for name in x.images if (data := media.read_image(media_dir, name))]
             messages.append(Msg("user", prompts.sample_block(x.id, x.source_name or x.source, x.text, x.image_note,
-                                                             data is not None),
-                                [Image(data)] if data else []))
+                                                             len(photos)), photos))
         if not text.strip():
             messages.append(Msg("user", "Analyze the new samples above and update the style guide if needed."))
 

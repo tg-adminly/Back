@@ -9,6 +9,7 @@ from PIL import Image, UnidentifiedImageError
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_SIDE = 1280
+MAX_ALBUM = 10  # Telegram albomidagi rasmlar soni
 _NAME = re.compile(r"^[0-9a-f]{32}\.jpg$")
 
 

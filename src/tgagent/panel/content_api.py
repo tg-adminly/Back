@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/content")
 
 NOT_FOUND = "Topilmadi."
 EMPTY_SAMPLE = "Post matni yoki rasmi bo'lishi kerak."
+TOO_MANY_IMAGES = "Bitta postda ko'pi bilan 10 ta rasm bo'ladi (Telegram albomi)."
 EMPTY_MESSAGE = "Xabar bo'sh. Yangi namuna ham yo'q."
 ALREADY_DECIDED = "Bu taklif bo'yicha qaror allaqachon qabul qilingan."
 EMPTY_GUIDE = "Qo'llanma bo'sh bo'lmasin."
@@ -26,7 +27,7 @@ def sample_out(x: Sample | None) -> dict | None:
         return None
     return {
         "id": x.id, "source": x.source, "source_name": x.source_name, "text": x.text,
-        "image": f"/api/content/media/{x.image}" if x.image else None, "image_note": x.image_note,
+        "images": [f"/api/content/media/{name}" for name in x.images], "image_note": x.image_note,
         "image_desc": x.image_desc, "analysis": x.analysis, "added_by": x.added_by,
         "created_at": x.created_at.isoformat(),
     }
@@ -78,21 +79,26 @@ async def chat_sample(
     source: Annotated[SampleSource, Form()] = SampleSource.OTHER,
     source_name: Annotated[str, Form(max_length=255)] = "",
     image_note: Annotated[str, Form(max_length=1000)] = "",
-    image: Annotated[UploadFile | None, File()] = None,
+    images: Annotated[list[UploadFile], File()] = [],  # noqa: B006 — FastAPI har so'rovga yangisini beradi
 ):
     """Namuna post: chatga qo'shiladi, agent «Tahlil qilish» bosilganda hammasini birga ko'radi."""
-    data = await image.read(media.MAX_BYTES + 1) if image else b""
-    if not text.strip() and not data:
+    if len(images) > media.MAX_ALBUM:
+        raise HTTPException(400, TOO_MANY_IMAGES)
+    files = [await f.read(media.MAX_BYTES + 1) for f in images]
+    files = [b for b in files if b]
+    if not text.strip() and not files:
         raise HTTPException(400, EMPTY_SAMPLE)
-    name = None
-    if data:
-        try:
-            name = media.save_image(d.settings.media_dir, data)
-        except media.BadImage as e:
-            raise HTTPException(400, str(e)) from None
+    names: list[str] = []
+    try:
+        for data in files:
+            names.append(media.save_image(d.settings.media_dir, data))
+    except media.BadImage as e:
+        for name in names:
+            media.delete_image(d.settings.media_dir, name)
+        raise HTTPException(400, str(e)) from None
     async with d.sm() as s:
         msg = await trainer.add_sample(s, text=text, author=staff.name, source=source,
-                                       source_name=source_name.strip() or None, image=name, image_note=image_note)
+                                       source_name=source_name.strip() or None, images=names, image_note=image_note)
         return message_out(msg)
 
 
@@ -186,10 +192,11 @@ async def sample_delete(sid: int, d: D, _: Staff):
         x = await s.get(Sample, sid)
         if x is None:
             raise HTTPException(404, NOT_FOUND)
-        image = x.image
+        names = list(x.images)
         await s.delete(x)
         await s.commit()
-    media.delete_image(d.settings.media_dir, image)
+    for name in names:
+        media.delete_image(d.settings.media_dir, name)
     return {"ok": True}
 
 

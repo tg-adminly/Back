@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import BigInteger, ForeignKey, String, Text
+from sqlalchemy import JSON, BigInteger, ForeignKey, String, Text
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from tgagent.core.db import Base, UTCDateTime, utcnow
@@ -25,7 +26,7 @@ class SampleSource(StrEnum):
 
 
 class Sample(Base):
-    """O'qitish uchun post: matn + rasm (ixtiyoriy) + agentning tahlili."""
+    """O'qitish uchun post: matn + rasmlar (ixtiyoriy, bir nechta bo'lishi mumkin) + agentning tahlili."""
 
     __tablename__ = "content_samples"
 
@@ -33,10 +34,11 @@ class Sample(Base):
     source: Mapped[SampleSource] = mapped_column(String(16))
     source_name: Mapped[str | None] = mapped_column(String(255))  # kanal nomi/linki
     text: Mapped[str] = mapped_column(Text, default="")
-    image: Mapped[str | None] = mapped_column(String(64))  # media_dir ichidagi fayl nomi
-    image_note: Mapped[str | None] = mapped_column(Text)  # xodim yozgan rasm tavsifi
+    # media_dir ichidagi fayl nomlari, post tartibida (Telegram albomi — 10 tagacha)
+    images: Mapped[list[str]] = mapped_column(JSON, default=list, server_default=sql_text("'[]'"))
+    image_note: Mapped[str | None] = mapped_column(Text)  # xodim yozgan rasm(lar) tavsifi
     analysis: Mapped[str | None] = mapped_column(Text)  # agent tahlili; None — hali tahlil qilinmagan
-    image_desc: Mapped[str | None] = mapped_column(Text)  # agent rasmda nimani ko'rdi
+    image_desc: Mapped[str | None] = mapped_column(Text)  # agent rasm(lar)da nimani ko'rdi
     # Telegram'dan kelgan bo'lsa (takror qo'shilmasin)
     chat_id: Mapped[int | None] = mapped_column(BigInteger)
     message_id: Mapped[int | None]

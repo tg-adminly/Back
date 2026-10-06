@@ -18,15 +18,15 @@
     "semantic_hash": "ec894ef2f01b779f37e2243d9fdc53ab"
   },
   "panel/src/App.tsx": {
-    "mtime": 1791306584.426575,
-    "seen": 1791306715.6548722,
-    "ast_hash": "e740e6dd9909a20dac5192da259ee808",
+    "mtime": 1791315200.2706504,
+    "seen": 1791315418.550901,
+    "ast_hash": "9b317e413174091b28bcb24a2628f4d5",
     "semantic_hash": ""
   },
   "panel/src/api.ts": {
-    "mtime": 1791311416.9213822,
-    "seen": 1791311435.147007,
-    "ast_hash": "485ad2b071a2a8efd8abb5feeabe79d2",
+    "mtime": 1791315205.6979275,
+    "seen": 1791315418.5509021,
+    "ast_hash": "a26fa6c053d77613aeda3cd45ea5f7c6",
     "semantic_hash": ""
   },
   "panel/src/main.tsx": {
@@ -108,10 +108,10 @@
     "semantic_hash": "b797a31da442458c7b6148ab648405a7"
   },
   "pyproject.toml": {
-    "mtime": 1790741373.7547412,
-    "seen": 1791090979.317261,
-    "ast_hash": "9a8df81ffc12182b516648b1c897d39c",
-    "semantic_hash": "9a8df81ffc12182b516648b1c897d39c"
+    "mtime": 1791315026.3450134,
+    "seen": 1791315418.5509171,
+    "ast_hash": "8ffad038e81d354e094965867625d8e5",
+    "semantic_hash": ""
   },
   "src/tgagent/__init__.py": {
     "mtime": 1790620345.5304267,
@@ -120,9 +120,9 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "src/tgagent/__main__.py": {
-    "mtime": 1791304104.2914686,
-    "seen": 1791304418.103103,
-    "ast_hash": "0085c15877c10e09e253ab4d60a7408b",
+    "mtime": 1791315026.3452084,
+    "seen": 1791315418.5509179,
+    "ast_hash": "4ef650d90e191eb5ca7784aa691d9afe",
     "semantic_hash": ""
   },
   "src/tgagent/agents/__init__.py": {
@@ -234,10 +234,10 @@
     "semantic_hash": "c3fcaf2e44006e8d9134601112d3278d"
   },
   "src/tgagent/config.py": {
-    "mtime": 1790741439.9808943,
-    "seen": 1791090979.3172941,
-    "ast_hash": "0da2d453e862566921b02999ee6a3c6c",
-    "semantic_hash": "0da2d453e862566921b02999ee6a3c6c"
+    "mtime": 1791315026.3455472,
+    "seen": 1791315418.5509381,
+    "ast_hash": "40ce3347a5612428824d5f6689ca7ead",
+    "semantic_hash": ""
   },
   "src/tgagent/core/__init__.py": {
     "mtime": 1790620345.530535,
@@ -252,9 +252,9 @@
     "semantic_hash": "bcba8f0fa94b4f51ba8de03faab0f741"
   },
   "src/tgagent/core/db.py": {
-    "mtime": 1791306379.824385,
-    "seen": 1791306715.654906,
-    "ast_hash": "f0456fac175d4ab547a1c44d4278bfd7",
+    "mtime": 1791315026.3457355,
+    "seen": 1791315418.5509398,
+    "ast_hash": "956425e43ecf2edcf30b6c357c98f132",
     "semantic_hash": ""
   },
   "src/tgagent/panel/__init__.py": {
@@ -264,9 +264,9 @@
     "semantic_hash": "b254b22bc8273172bc3fd3aca0aa5e9f"
   },
   "src/tgagent/panel/api.py": {
-    "mtime": 1791311416.921015,
-    "seen": 1791311435.147041,
-    "ast_hash": "4df9fcc9e13bd70cb0213138d8f0a4ae",
+    "mtime": 1791315026.3459783,
+    "seen": 1791315418.550943,
+    "ast_hash": "a5f89b0481e053cce5ecd33637e239a6",
     "semantic_hash": ""
   },
   "src/tgagent/panel/auth.py": {
@@ -288,10 +288,10 @@
     "semantic_hash": "3d496fcdf304cea509559f2d467098be"
   },
   "src/tgagent/panel/server.py": {
-    "mtime": 1790741593.4645386,
-    "seen": 1791090979.317303,
-    "ast_hash": "b702eed88c66e34d516e4c65f33117c1",
-    "semantic_hash": "b702eed88c66e34d516e4c65f33117c1"
+    "mtime": 1791315026.3461921,
+    "seen": 1791315418.550946,
+    "ast_hash": "183c6a6c157f24f6b092e2339520056a",
+    "semantic_hash": ""
   },
   "src/tgagent/panel/texts.py": {
     "mtime": 1791229068.7597036,
@@ -330,15 +330,15 @@
     "semantic_hash": "6b5acb4c620b337aa6a105f1bcf82f59"
   },
   "CLAUDE.md": {
-    "mtime": 1791306711.1593919,
-    "seen": 1791306715.654917,
-    "ast_hash": "38f9ab667041ea06d27460d768c78ce6",
+    "mtime": 1791315413.2317927,
+    "seen": 1791315418.550953,
+    "ast_hash": "0c71a60f01e4ba3caa5c7003220d2693",
     "semantic_hash": ""
   },
   "SPEC.md": {
-    "mtime": 1791311984.8003995,
-    "seen": 1791311989.6405828,
-    "ast_hash": "f930c93423e1f96e9ef02cb375537c24",
+    "mtime": 1791315413.2321045,
+    "seen": 1791315418.5509539,
+    "ast_hash": "2654531907234317aa30cf274d4672a5",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -387,6 +387,60 @@
     "mtime": 1791306513.785294,
     "seen": 1791306715.654912,
     "ast_hash": "e73f4dde7def98760c3fa01dbe9d8ce3",
+    "semantic_hash": ""
+  },
+  "panel/src/pages/Content.tsx": {
+    "mtime": 1791315411.3813784,
+    "seen": 1791315418.550904,
+    "ast_hash": "1a08dc78409001ed22ce4472bd751895",
+    "semantic_hash": ""
+  },
+  "src/tgagent/agents/content/__init__.py": {
+    "mtime": 1791314929.5712447,
+    "seen": 1791315418.55092,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "src/tgagent/agents/content/media.py": {
+    "mtime": 1791314929.5763128,
+    "seen": 1791315418.550921,
+    "ast_hash": "9af6ba962705927ac7a91e347673fe07",
+    "semantic_hash": ""
+  },
+  "src/tgagent/agents/content/models.py": {
+    "mtime": 1791314929.5740156,
+    "seen": 1791315418.550921,
+    "ast_hash": "65e6d08072937e77eaa55f0c943c0a88",
+    "semantic_hash": ""
+  },
+  "src/tgagent/agents/content/prompts.py": {
+    "mtime": 1791314943.0695777,
+    "seen": 1791315418.550922,
+    "ast_hash": "71cf8fa81a4329e732505ed3c4ee8977",
+    "semantic_hash": ""
+  },
+  "src/tgagent/agents/content/trainer.py": {
+    "mtime": 1791315075.3649158,
+    "seen": 1791315418.550922,
+    "ast_hash": "591a8c870544b8b225d383c0b840428f",
+    "semantic_hash": ""
+  },
+  "src/tgagent/core/llm.py": {
+    "mtime": 1791314880.1564577,
+    "seen": 1791315418.550941,
+    "ast_hash": "683e30a167b4e4ff055fbd6dee0bfde8",
+    "semantic_hash": ""
+  },
+  "src/tgagent/panel/content_api.py": {
+    "mtime": 1791315013.2173443,
+    "seen": 1791315418.550945,
+    "ast_hash": "796b80548b03f75e233483707d6f6013",
+    "semantic_hash": ""
+  },
+  "tests/test_content.py": {
+    "mtime": 1791315066.5273814,
+    "seen": 1791315418.5509481,
+    "ast_hash": "4d78d537c84fce4842083d993011ef6d",
     "semantic_hash": ""
   }
 }

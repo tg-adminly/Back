@@ -113,7 +113,7 @@ Agent ishlagan sari o'rganadi. **Hamma post tasdiqdan o'tadi** (avto rejimda ham
 ### Agent bilimi
 - **Uslub qo'llanma** — agentning o'zi uchun yozgan umumiy qoidalari (ohang, uzunlik, emoji, tuzilish,
   mavzular, nima qilinmaydi). Har o'zgarish versiya sifatida saqlanadi, Editor ko'radi, qo'lda tuzatadi, eski versiyaga qaytaradi.
-- **Namunalar kutubxonasi** — o'qitish uchun postlar: matn + rasm (yoki rasm tavsifi) + manba
+- **Namunalar kutubxonasi** — o'qitish uchun postlar: matn + rasmlar (albom — 10 tagacha, yoki tavsifi) + manba
   (o'z kanalimiz / boshqa kanal) + agentning qisqa tahlili.
 
 ### O'qitish chati (panel)
@@ -134,7 +134,8 @@ Agent ishlagan sari o'rganadi. **Hamma post tasdiqdan o'tadi** (avto rejimda ham
 1. Editor mavzu/rasm beradi yoki agent o'zi mavzu tanlaydi → agent qoralama yozadi.
 2. Holatlar: `qoralama → tasdiqlandi (vaqt bilan) → chiqdi`, yoki `rad`.
 3. Editor: ✅ Tasdiqlash (hozir yoki vaqtga) / ✏️ Tahrirlash / 🔁 Izoh bilan qayta yozdirish / ❌ Rad.
-4. Rasmni asosan Editor yuklaydi. Rasmli postda matn ≤ 1024 belgi (Telegram cheklovi) — agent shunga moslab yozadi.
+4. Rasmni asosan Editor yuklaydi — bitta yoki bir nechta (albom, 10 tagacha). Rasmli postda matn ≤ 1024 belgi
+   (Telegram cheklovi, albomda matn birinchi rasm tagida) — agent shunga moslab yozadi.
 5. **O'rganish:** Editor tuzatgan/rad etgan qoralamalardan agent saboq chiqaradi va qo'llanmaga o'zgarish taklif qiladi (tasdiq bilan).
 
 ### Jadval

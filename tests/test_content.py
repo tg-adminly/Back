@@ -66,16 +66,20 @@ async def test_training_chat_flow(env):
 
     # Namunalar yig'iladi, agent hali javob bermaydi
     r = await c.post("/api/content/chat/sample", data={"text": "Bahor keldi 🌸", "source_name": "@boshqa"},
-                     files={"image": ("a.png", jpeg(), "image/png")}, headers=H)
+                     files=[("images", ("a.png", jpeg(), "image/png")), ("images", ("b.png", jpeg((300, 300)), "image/png"))],
+                     headers=H)
     assert r.status_code == 200, r.text
     first = r.json()["sample"]
     await c.post("/api/content/chat/sample", data={"text": "Ikkinchi post"}, headers=H)
     assert (await c.post("/api/content/chat/sample", data={"text": " "}, headers=H)).status_code == 400
+    eleven = [("images", (f"{i}.png", jpeg((10, 10)), "image/png")) for i in range(11)]
+    assert (await c.post("/api/content/chat/sample", files=eleven, headers=H)).status_code == 400
     assert (await c.get("/api/content/chat")).json()["pending_samples"] == 2
     assert env.ai.calls == []
 
     # Rasm kichraytirib saqlangan va faqat xodimga ochiq
-    img = await c.get(first["image"])
+    assert len(first["images"]) == 2  # albom: bir postda bir nechta rasm
+    img = await c.get(first["images"][0])
     assert img.status_code == 200 and max(PILImage.open(io.BytesIO(img.content)).size) == 1280
     assert (await c.get("/api/content/media/..%2F..%2Fsecret")).status_code == 404
 
@@ -90,7 +94,8 @@ async def test_training_chat_flow(env):
     reply = r.json()
     assert reply["proposal_status"] == "pending" and reply["proposal_note"] == "Ohang qo'shildi"
     sent = env.ai.calls[-1]
-    assert sum(len(m.images) for m in sent) == 1
+    assert sum(len(m.images) for m in sent) == 2
+    assert "album of 2 photos" in "\n".join(m.text for m in sent)
     assert "@boshqa" in "\n".join(m.text for m in sent)
 
     chat = (await c.get("/api/content/chat")).json()
@@ -120,7 +125,7 @@ async def test_training_chat_flow(env):
 
     # Namunani o'chirish — chatda «o'chirilgan» bo'lib qoladi
     assert (await c.delete(f"/api/content/samples/{first['id']}", headers=H)).status_code == 200
-    assert (await c.get(first["image"])).status_code == 404
+    assert (await c.get(first["images"][1])).status_code == 404
     msgs = (await c.get("/api/content/chat")).json()["messages"]
     assert msgs[0]["sample_deleted"] is True
 
