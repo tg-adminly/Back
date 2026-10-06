@@ -10,7 +10,7 @@ from tgagent.core.db import Base, UTCDateTime, utcnow
 
 class GiveawayStatus(StrEnum):
     ACTIVE = "active"
-    DRAWING = "drawing"  # qatnashish yopildi, jonli o'yin (g'oliblarni chiqarish) kutilmoqda
+    DRAWING = "drawing"  # qatnashish yopildi, g'oliblar aniqlanmoqda (jonli o'yin yoki avtomatik)
     FINISHED = "finished"
     CANCELLED = "cancelled"
 
@@ -83,6 +83,8 @@ class Giveaway(Base):
     # True — vaqti kelganda bot g'oliblarni o'zi aniqlab kanalga tashlaydi.
     # False — vaqt faqat eslatma: egasi/muharrir panelda jonli o'yin o'tkazadi
     auto_draw: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Jonli rejim: vaqti kelganda egasi/muharrirga eslatma yuborilgan payt (vaqt o'zgarsa — qayta yuboriladi)
+    reminded_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     # Random manbasi (draw.rank). Hech qayerda e'lon qilinmaydi
     seed: Mapped[str] = mapped_column(String(64))

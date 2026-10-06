@@ -226,6 +226,11 @@ class GiveawayIn(BaseModel):
 class GiveawayPatch(BaseModel):
     ends_at: str | None = None  # mahalliy vaqt
     auto_draw: bool | None = None
+    sponsor_ids: list[int] | None = None
+
+
+class CancelIn(BaseModel):
+    mode: actions.CancelMode = actions.CancelMode.ANNOUNCE
 
 
 @dataclass
@@ -354,7 +359,7 @@ async def giveaway_participants(gid: int, d: D, _: Staff, q: str = "", offset: i
 
 @router.patch("/giveaways/{gid}")
 async def giveaway_update(gid: int, body: GiveawayPatch, d: D, _: Owner):
-    """Faol rozigrish: vaqtini va g'olibni aniqlash usulini o'zgartirish (kanal posti ham yangilanadi)."""
+    """Faol rozigrish: vaqti, g'olibni aniqlash usuli, homiylari (kanal posti ham yangilanadi)."""
     ends_at = None
     if body.ends_at is not None:
         try:
@@ -364,7 +369,9 @@ async def giveaway_update(gid: int, body: GiveawayPatch, d: D, _: Owner):
         if ends_at is None or ends_at <= utcnow():
             raise HTTPException(422, {"errors": {"ends_at": ptexts.API_BAD_ENDS_AT}})
     try:
-        warning = await actions.update_giveaway(d.bot, d.settings, d.sm, gid, ends_at=ends_at, auto_draw=body.auto_draw)
+        warning = await actions.update_giveaway(
+            d.bot, d.settings, d.sm, gid, ends_at=ends_at, auto_draw=body.auto_draw, sponsor_ids=body.sponsor_ids
+        )
     except actions.ActionError as e:
         raise HTTPException(400, plain(e.message)) from None
     return {"ok": True, "warning": plain(warning) if warning else None}
@@ -372,18 +379,23 @@ async def giveaway_update(gid: int, body: GiveawayPatch, d: D, _: Owner):
 
 @router.post("/giveaways/{gid}/finish")
 async def giveaway_finish(gid: int, d: D, _: Staff):
-    async with d.sm() as s:
-        if not await service.finish_now(s, gid):
-            raise HTTPException(400, plain(texts.NOT_ACTIVE))
+    """Qatnashishni hozir yopish. Jonli rejimda — o'yin boshlanishi (obuna tekshiruvi jonli sahifada ko'rinadi),
+    avtomatik rejimda — bot darhol aniqlab e'lon qiladi."""
+    if not await jobs.close_now(d.bot, d.sm, d.settings, d.main_chat, gid, notify=False):
+        raise HTTPException(400, plain(texts.NOT_ACTIVE))
+    _public_cache.pop(gid, None)
     return {"ok": True}
 
 
 @router.post("/giveaways/{gid}/cancel")
-async def giveaway_cancel(gid: int, d: D, _: Owner):
-    async with d.sm() as s:
-        if not await service.cancel_giveaway(s, gid):
-            raise HTTPException(400, plain(texts.NOT_ACTIVE))
-    return {"ok": True}
+async def giveaway_cancel(gid: int, d: D, _: Owner, body: CancelIn | None = None):
+    """Bekor qilish; mode — kanaldagi post bilan nima qilinadi (e'lon / o'chirish / tegmaslik)."""
+    try:
+        warning = await actions.cancel_giveaway(d.bot, d.settings, d.sm, gid, (body or CancelIn()).mode)
+    except actions.ActionError as e:
+        raise HTTPException(400, plain(e.message)) from None
+    _public_cache.pop(gid, None)
+    return {"ok": True, "warning": plain(warning) if warning else None}
 
 
 # --- Jonli o'yin (efirda ekranni ulashib ko'rsatiladi) ---
@@ -497,6 +509,7 @@ async def public_giveaway(gid: int, d: D):
         "id": g.id,
         "title": g.title,
         "status": g.status,
+        "auto_draw": g.auto_draw,
         "prizes": [prize_out(p) for p in g.prizes],
         "ends_at": g.ends_at.isoformat(),
         "timezone": d.settings.timezone,

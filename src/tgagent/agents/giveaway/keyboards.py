@@ -15,6 +15,7 @@ class ManageCB(CallbackData, prefix="gm"):
     action: str  # finish | cancel
     giveaway_id: int
     confirmed: bool = False
+    mode: str = ""  # cancel: actions.CancelMode qiymati
 
 
 class JoinCB(CallbackData, prefix="join"):
@@ -96,6 +97,19 @@ def manage(giveaway_id: int) -> InlineKeyboardMarkup:
 def manage_confirm(action: str, giveaway_id: int) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(text=texts.BTN_YES, callback_data=ManageCB(action=action, giveaway_id=giveaway_id, confirmed=True))
+    return b.as_markup()
+
+
+def manage_cancel(giveaway_id: int) -> InlineKeyboardMarkup:
+    """Bekor qilish: kanaldagi post bilan nima qilish kerak."""
+    b = InlineKeyboardBuilder()
+    for text, mode in (
+        (texts.BTN_CANCEL_ANNOUNCE, "announce"),
+        (texts.BTN_CANCEL_DELETE, "delete"),
+        (texts.BTN_CANCEL_SILENT, "silent"),
+    ):
+        b.button(text=text, callback_data=ManageCB(action="cancel", giveaway_id=giveaway_id, confirmed=True, mode=mode))
+    b.adjust(1)
     return b.as_markup()
 
 

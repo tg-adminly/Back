@@ -82,12 +82,12 @@ export default function PublicList() {
           <div className="text-2xl font-semibold tabular-nums">{d.participants.length - dropped}</div>
           <div className="text-xs text-zinc-500">
             ishtirokchi
-            {dropped > 0 && <span className="text-red-600 dark:text-red-400"> · {dropped} tasi chiqib ketgan</span>}
+            {dropped > 0 && <span className="text-red-600 dark:text-red-400"> · {dropped} tasi obuna emas</span>}
           </div>
         </Card>
         <Card>
           <div className="text-base font-semibold">{formatDate(d.ends_at, d.timezone)}</div>
-          <div className="text-xs text-zinc-500">{d.status === 'active' ? 'qatnashish yopiladi' : 'qatnashish yopildi'}</div>
+          <div className="text-xs text-zinc-500">{d.status !== 'active' ? 'qatnashish yopildi' : d.auto_draw ? 'qatnashish yopiladi' : "jonli o'yin (taxminan)"}</div>
         </Card>
       </div>
 
@@ -126,7 +126,7 @@ export default function PublicList() {
                 {p.missing.length ? (
                   <div className="min-w-0">
                     <div className="truncate text-zinc-400 line-through">{p.name}</div>
-                    <div className="text-xs text-red-600 dark:text-red-400">❌ Chiqib ketgan: {p.missing.join(', ')}</div>
+                    <div className="text-xs text-red-600 dark:text-red-400">❌ Obuna emas: {p.missing.join(', ')}</div>
                   </div>
                 ) : (
                   <span className="min-w-0 truncate">{p.name}</span>

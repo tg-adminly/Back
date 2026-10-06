@@ -11,7 +11,7 @@ from tgagent.agents.giveaway.models import Winner, WinnerStatus
 from tgagent.channels.telegram_bot.chats import ChatRef
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
-from tgagent.core.db import init_db, make_engine, make_sessionmaker
+from tgagent.core.db import init_db, make_engine, make_sessionmaker, utcnow
 from tgagent.panel import api as panel_api
 from tgagent.panel.api import Deps, sponsor_ref
 from tgagent.panel.auth import LoginRequests
@@ -43,7 +43,10 @@ class FakeBot:
         self.sent.append(("photo", chat_id, caption))
 
     async def edit_message_text(self, text, chat_id=None, message_id=None, **kw):
-        self.sent.append(("edit", chat_id, text))
+        self.sent.append(("edit", chat_id, text, kw.get("reply_markup")))
+
+    async def delete_message(self, chat_id, message_id):
+        self.sent.append(("delete", chat_id, message_id))
 
 
 @pytest.fixture
@@ -119,7 +122,12 @@ async def test_create_giveaway_flow(env):
     assert [x["title"] for x in g["sponsors"]] == ["Homiy kanal"]
     # Faol rozigrishdagi homiyni o'chirib bo'lmaydi
     assert (await env.client.delete(f"/api/sponsors/{sp['id']}", headers=H)).status_code == 400
-    assert (await env.client.post(f"/api/giveaways/{gid}/cancel", headers=H)).json() == {"ok": True}
+    # Bekor qilish (standart — e'lon): post tahrirlanadi, tugmalari olinadi, kanalga xabar ketadi
+    assert (await env.client.post(f"/api/giveaways/{gid}/cancel", headers=H)).json() == {"ok": True, "warning": None}
+    edit, notice = env.bot.sent[-2:]
+    assert edit[0] == "edit" and "BEKOR QILINDI" in edit[2] and edit[3] is None
+    assert notice[1] == -100 and "bekor qilindi" in notice[2]
+    assert (await env.client.post(f"/api/giveaways/{gid}/cancel", headers=H)).status_code == 400
     assert (await env.client.delete(f"/api/sponsors/{sp['id']}", headers=H)).json() == {"ok": True}
 
 
@@ -213,8 +221,6 @@ async def test_live_draw_flow(env):
 
     # Faol rozigrishda jonli o'yin boshlanmaydi
     assert (await env.client.post(f"/api/giveaways/{gid}/live/next", headers=H)).status_code == 400
-    async with env.sm() as s:
-        await service.finish_now(s, gid)
     # Sobir qatnashgandan keyin kanaldan chiqib ketgan — yopilishda qayta tekshiruv uni chiqarib tashlaydi
     env.bot.left.add(14)
     await jobs.close_participation(env.bot, env.sm, env.settings, env.main_chat, gid)
@@ -287,7 +293,6 @@ async def test_auto_draw_and_editor_runs_live(env):
         for gid in (auto_id, live_id):
             for uid, name in [(11, "Ali"), (12, "Vali")]:
                 await service.add_participant(s, gid, uid, name, None)
-            await service.finish_now(s, gid)
 
     # Avtomatik: yopilishi bilan g'olib kanalga chiqadi
     sent = len(env.bot.sent)
@@ -308,3 +313,52 @@ async def test_auto_draw_and_editor_runs_live(env):
     picks = (await env.client.post(f"/api/giveaways/{live_id}/live/next", headers=H)).json()["picks"]
     assert picks[-1]["place"] == 1
     assert (await env.client.post(f"/api/giveaways/{live_id}/live/announce", headers=H)).json() == {"ok": True}
+
+
+async def test_live_mode_time_is_only_reminder(env):
+    """Jonli rejim: vaqt o'tsa ham qatnashish ochiq, faqat eslatma; o'yin istalgan paytda boshlanadi."""
+    from tgagent.agents.giveaway import jobs, service
+    from tgagent.agents.giveaway.handlers.participant import _try_join
+    from tgagent.agents.giveaway.models import Giveaway
+
+    await login(env)
+    sp = (await env.client.post("/api/sponsors", json={"ref": "t.me/homiy"}, headers=H)).json()
+    body = {"title": "Jonli", "description": "Y", "prizes": ["100k"], "ends_at": future(), "sponsor_ids": [sp["id"]]}
+    gid = (await env.client.post("/api/giveaways", json=body, headers=H)).json()["id"]
+    assert "Jonli o'yin:" in env.bot.sent[-1][2]
+
+    # Homiyni olib tashlash — post yangilanadi
+    r = await env.client.patch(f"/api/giveaways/{gid}", json={"sponsor_ids": []}, headers=H)
+    assert r.json()["warning"] is None and "Homiy kanallarga" not in env.bot.sent[-1][2]
+    r = await env.client.patch(f"/api/giveaways/{gid}", json={"sponsor_ids": [sp["id"]]}, headers=H)
+    assert [x["title"] for x in (await env.client.get(f"/api/giveaways/{gid}")).json()["sponsors"]] == ["Homiy kanal"]
+
+    # Vaqt o'tdi: bot yopmaydi, faqat eslatadi (bir marta)
+    async with env.sm() as s:
+        g = await s.get(Giveaway, gid)
+        g.ends_at = utcnow() - timedelta(minutes=1)
+        await s.commit()
+        assert await service.due_giveaway_ids(s) == []
+        assert await service.due_reminder_ids(s) == [gid]
+    sent = len(env.bot.sent)
+    await jobs.remind(env.bot, env.sm, env.settings, gid)
+    assert {m[1] for m in env.bot.sent[sent:]} == {OWNER, EDITOR} and "vaqti keldi" in env.bot.sent[-1][2]
+    async with env.sm() as s:
+        assert await service.due_reminder_ids(s) == []
+
+    # Vaqtdan keyin ham qatnashsa bo'ladi
+    user = SimpleNamespace(id=55, full_name="Kech", username=None)
+    _, created = await _try_join(env.bot, env.sm, env.main_chat, gid, user)
+    assert created
+
+    # O'yinni boshlash: qatnashish darhol yopiladi, tekshiruv fonda
+    assert (await env.client.post(f"/api/giveaways/{gid}/finish", headers=H)).json() == {"ok": True}
+    while (state := (await env.client.get(f"/api/giveaways/{gid}/live")).json())["check"]:
+        await asyncio.sleep(0.01)
+    assert state["status"] == "drawing" and state["participants"] == 1
+    _, created = await _try_join(env.bot, env.sm, env.main_chat, gid, SimpleNamespace(id=56, full_name="X", username=None))
+    assert not created
+
+    # O'yin paytida ham bekor qilsa bo'ladi; o'chirish rejimi
+    r = await env.client.post(f"/api/giveaways/{gid}/cancel", json={"mode": "delete"}, headers=H)
+    assert r.json() == {"ok": True, "warning": None} and env.bot.sent[-1][0] == "delete"

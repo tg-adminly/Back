@@ -230,7 +230,7 @@ export function PostPreview({ html, sponsors, count = 0 }: { html: string | null
 }
 
 /** Homiy qo'shish oynasi: eski homiylardan tanlash yoki yangisini qo'shish */
-function SponsorModalBody({ sponsors, onChoose }: { sponsors: Sponsor[]; onChoose: (ids: number[]) => void }) {
+export function SponsorModalBody({ sponsors, onChoose }: { sponsors: Sponsor[]; onChoose: (ids: number[]) => void }) {
   const [picking, setPicking] = useState(false)
 
   if (picking) return <OldSponsorPicker sponsors={sponsors} onChoose={onChoose} onBack={() => setPicking(false)} />

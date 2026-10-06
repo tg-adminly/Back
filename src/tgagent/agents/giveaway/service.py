@@ -123,12 +123,31 @@ async def active_giveaways(session: AsyncSession) -> list[Giveaway]:
 
 
 async def due_giveaway_ids(session: AsyncSession, now: datetime | None = None) -> list[int]:
+    """Avtomatik rejim: vaqti kelgan — bot o'zi yopib, g'olibni aniqlaydi."""
     now = now or utcnow()
     return list(
         (
             await session.scalars(
                 select(Giveaway.id).where(
                     Giveaway.status == GiveawayStatus.ACTIVE,
+                    Giveaway.auto_draw.is_(True),
+                    Giveaway.ends_at <= now,
+                )
+            )
+        ).all()
+    )
+
+
+async def due_reminder_ids(session: AsyncSession, now: datetime | None = None) -> list[int]:
+    """Jonli rejim: vaqti kelgan, lekin hali eslatilmagan. Qatnashish yopilmaydi — o'yinni egasi boshlaydi."""
+    now = now or utcnow()
+    return list(
+        (
+            await session.scalars(
+                select(Giveaway.id).where(
+                    Giveaway.status == GiveawayStatus.ACTIVE,
+                    Giveaway.auto_draw.is_(False),
+                    Giveaway.reminded_at.is_(None),
                     Giveaway.ends_at <= now,
                 )
             )
@@ -170,23 +189,14 @@ def mark_done(winner: Winner) -> None:
     winner.full_name_enc = winner.phone_enc = winner.address_enc = None
 
 
-async def finish_now(session: AsyncSession, giveaway_id: int) -> bool:
-    """Faol rozigrishda qatnashishni hozir yopishga qo'yadi (draw_loop 30 soniyada ushlaydi)."""
+async def cancel_giveaway(session: AsyncSession, giveaway_id: int) -> Giveaway | None:
+    """Faol yoki g'olib aniqlanayotgan (hali e'lon qilinmagan) rozigrishni bekor qiladi."""
     g = await session.get(Giveaway, giveaway_id)
-    if g is None or g.status != GiveawayStatus.ACTIVE:
-        return False
-    g.ends_at = utcnow()
-    await session.commit()
-    return True
-
-
-async def cancel_giveaway(session: AsyncSession, giveaway_id: int) -> bool:
-    g = await session.get(Giveaway, giveaway_id)
-    if g is None or g.status != GiveawayStatus.ACTIVE:
-        return False
+    if g is None or g.status not in (GiveawayStatus.ACTIVE, GiveawayStatus.DRAWING):
+        return None
     g.status = GiveawayStatus.CANCELLED
     await session.commit()
-    return True
+    return g
 
 
 async def list_giveaways(session: AsyncSession, status: GiveawayStatus | None = None) -> list[Giveaway]:

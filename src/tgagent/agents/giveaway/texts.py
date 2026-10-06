@@ -122,7 +122,10 @@ def giveaway_post(g: Giveaway, tz: ZoneInfo, sponsor_titles: list[str]) -> str:
         "🏆 <b>Sovrinlar:</b>",
         *prizes_block(g.prizes),
         "",
-        f"⏰ Yakunlanadi: <b>{local_time(g.ends_at, tz)}</b> (Toshkent vaqti)",
+        # Jonli rejimda vaqt — taxminiy (o'yin oldinroq yoki keyinroq bo'lishi mumkin)
+        f"⏰ Yakunlanadi: <b>{local_time(g.ends_at, tz)}</b> (Toshkent vaqti)"
+        if g.auto_draw
+        else f"⏰ Jonli o'yin: <b>{local_time(g.ends_at, tz)}</b> (Toshkent vaqti)",
         "",
         "<b>Qatnashish shartlari:</b>",
     ]
@@ -155,12 +158,25 @@ BTN_YES = "Ha, tasdiqlayman"
 CONFIRM_FINISH = "Rozigrish #{id} da qatnashishni hozir yopaymi? {next}"
 FINISH_NEXT_AUTO = "Bot g'oliblarni darhol o'zi aniqlab, kanalga e'lon qiladi."
 FINISH_NEXT_LIVE = "G'oliblarni keyin panelda jonli o'yinda aniqlaysiz."
-CONFIRM_CANCEL = "Rozigrish #{id} ni bekor qilaymi? G'olib aniqlanmaydi."
-FINISH_SCHEDULED = "⏳ Rozigrish #{id} da qatnashish 1 daqiqa ichida yopiladi. {next}"
-FINISH_SCHEDULED_AUTO = "Keyin bot g'oliblarni o'zi aniqlab, kanalga e'lon qiladi."
-FINISH_SCHEDULED_LIVE = "Keyin jonli o'yin uchun havola yuboraman."
+FINISH_DONE = "⏹ Rozigrish #{id} da qatnashish yopildi. {next}"
+FINISH_DONE_AUTO = "Obunani tekshirib, g'oliblarni aniqlab kanalga e'lon qilaman."
+FINISH_DONE_LIVE = "Obunani tekshiryapman — tugagach jonli o'yin havolasini yuboraman."
 GIVEAWAY_CANCELLED = "🗑 Rozigrish #{id} bekor qilindi."
+
+# Bekor qilish: kanalda nima qilish kerak
+CANCEL_ASK = "Rozigrish #{id} ni bekor qilaymi? G'olib aniqlanmaydi.\n\nKanaldagi post bilan nima qilay?"
+BTN_CANCEL_ANNOUNCE = "📢 Bekor qilinganini e'lon qilish"
+BTN_CANCEL_DELETE = "🗑 Postni o'chirish"
+BTN_CANCEL_SILENT = "🤫 Kanalga tegmaslik"
+CANCELLED_POST_HEADER = "❌ <b>ROZIGRISH BEKOR QILINDI</b>"
+CANCELLED_NOTICE = "❌ «{title}» rozigrishi bekor qilindi. Keyingi rozigrishlarimizni kuzatib boring! 💕"
+CANCEL_POST_FAILED = "Rozigrish bekor qilindi, lekin kanaldagi postni o'zgartirib bo'lmadi: {error}"
+CANCEL_DELETE_FAILED = (
+    "Rozigrish bekor qilindi, lekin postni o'chirib bo'lmadi (Telegram 48 soatdan eski postni o'chirishga "
+    "ruxsat bermasligi mumkin). Tugmalarini olib tashladim — postni kanalda o'zingiz o'chiring."
+)
 NOT_ACTIVE = "Bu rozigrish allaqachon faol emas."
+NOT_CANCELLABLE = "Bu rozigrishni bekor qilib bo'lmaydi (allaqachon yakunlangan yoki bekor qilingan)."
 
 
 def active_item(g: Giveaway, count: int, tz: ZoneInfo) -> str:
@@ -221,7 +237,7 @@ def results_post(
         lines.append("Afsuski, shartlarni bajargan ishtirokchi bo'lmadi.")
     if skipped:
         nums = ", ".join(f"#{n}" for n in skipped)
-        lines.append(f"\n<i>Obunadan chiqib ketgani uchun o'tkazib yuborildi: {nums}</i>")
+        lines.append(f"\n<i>Kanalga obuna bo'lmagani uchun o'tkazib yuborildi: {nums}</i>")
     return "\n".join(lines)
 
 
@@ -274,13 +290,21 @@ def live_ready(g: Giveaway, total: int, excluded: int | None, live_url: str) -> 
     if excluded is None:
         check = "⚠️ Obunani tekshirib bo'lmadi — jonli o'yin sahifasida «Qayta tekshirish»ni bosing.\n\n"
     elif excluded:
-        check = f"🔄 Obuna qayta tekshirildi: {excluded} kishi homiy kanaldan chiqib ketgan — o'yinda qatnashmaydi.\n\n"
+        check = f"🔄 Obuna qayta tekshirildi: {excluded} kishi kanal(lar)ga obuna emas — o'yinda qatnashmaydi.\n\n"
     else:
         check = "🔄 Obuna qayta tekshirildi: hamma shartni bajargan ✅\n\n"
     return (
         f"⏰ Rozigrish #{g.id} «{escape(g.title)}» vaqti keldi — qatnashish yopildi. Ishtirokchilar: {total}.\n"
         f"{check}"
         f"🎥 Jonli o'yinni boshlash (efirda ekranni ulashing):\n{live_url}"
+    )
+
+
+def live_reminder(g: Giveaway, count: int, live_url: str) -> str:
+    return (
+        f"⏰ Rozigrish #{g.id} «{escape(g.title)}» — jonli o'yin vaqti keldi! Ishtirokchilar: {count}.\n\n"
+        "Qatnashish hali ochiq. Tayyor bo'lganingizda jonli o'yin sahifasida "
+        f"«Qatnashishni yopib, o'yinni boshlash»ni bosing:\n{live_url}"
     )
 
 

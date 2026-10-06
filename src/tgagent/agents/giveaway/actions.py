@@ -2,11 +2,13 @@
 
 from collections.abc import Awaitable, Callable
 from datetime import datetime
+from enum import StrEnum
 from html import escape
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import ReplyParameters
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from tgagent.agents.giveaway import keyboards as kb
@@ -106,8 +108,9 @@ async def update_giveaway(
     *,
     ends_at: datetime | None = None,
     auto_draw: bool | None = None,
+    sponsor_ids: list[int] | None = None,
 ) -> str | None:
-    """Faol rozigrishning vaqtini / aniqlash usulini o'zgartiradi va kanaldagi postni yangilaydi.
+    """Faol rozigrishning vaqtini / aniqlash usulini / homiylarini o'zgartiradi va kanaldagi postni yangilaydi.
 
     Post yangilanmasa ham sozlama saqlanadi — ogohlantirish matnini qaytaradi.
     """
@@ -115,10 +118,15 @@ async def update_giveaway(
         g = await s.get(Giveaway, giveaway_id)
         if g is None or g.status != GiveawayStatus.ACTIVE:
             raise ActionError(texts.NOT_EDITABLE)
-        if ends_at is not None:
+        if ends_at is not None and ends_at != g.ends_at:
             g.ends_at = ends_at
+            g.reminded_at = None  # yangi vaqtda qayta eslatamiz
         if auto_draw is not None:
             g.auto_draw = auto_draw
+        if sponsor_ids is not None:
+            found = (await s.scalars(select(SponsorChannel).where(SponsorChannel.id.in_(sponsor_ids)))).all()
+            by_id = {sp.id: sp for sp in found}
+            g.sponsors = [by_id[i] for i in sponsor_ids if i in by_id]
         await s.commit()
         count = await service.participants_count(s, g.id)
     if not g.message_id:
@@ -135,6 +143,50 @@ async def update_giveaway(
         if "not modified" in str(e):
             return None
         return texts.POST_EDIT_FAILED.format(error=escape(str(e)))
+    return None
+
+
+class CancelMode(StrEnum):
+    ANNOUNCE = "announce"  # post «bekor qilindi» deb tahrirlanadi, tugmalar olinadi, kanalga xabar
+    DELETE = "delete"  # post o'chiriladi (bo'lmasa — tugmalari olinadi)
+    SILENT = "silent"  # kanalga tegilmaydi
+
+
+async def cancel_giveaway(
+    bot: Bot, settings: Settings, sm: async_sessionmaker, giveaway_id: int, mode: CancelMode
+) -> str | None:
+    """Rozigrishni bekor qiladi va kanaldagi postni tanlangan usulda yangilaydi. Ogohlantirish matnini qaytaradi."""
+    # Jonli o'yindagi amal bilan bir vaqtda bo'lmasin
+    async with jobs.draw_locks[giveaway_id], sm() as s:
+        g = await service.cancel_giveaway(s, giveaway_id)
+    if g is None:
+        raise ActionError(texts.NOT_CANCELLABLE)
+    if mode == CancelMode.SILENT or not g.message_id:
+        return None
+
+    if mode == CancelMode.DELETE:
+        try:
+            await bot.delete_message(g.chat_id, g.message_id)
+            return None
+        except TelegramAPIError:
+            try:
+                await bot.edit_message_reply_markup(chat_id=g.chat_id, message_id=g.message_id, reply_markup=None)
+            except TelegramAPIError:
+                pass
+            return texts.CANCEL_DELETE_FAILED
+
+    # Post tahrirlanadi (vaqt cheklovi yo'q): sarlavha + chizilgan matn, tugmalarsiz
+    sponsors = [sp.title for sp in g.sponsors]
+    text = f"{texts.CANCELLED_POST_HEADER}\n\n<s>{texts.giveaway_post(g, settings.tz, sponsors)}</s>"
+    try:
+        await bot.edit_message_text(text, chat_id=g.chat_id, message_id=g.message_id, reply_markup=None)
+        await bot.send_message(
+            g.chat_id,
+            texts.CANCELLED_NOTICE.format(title=escape(g.title)),
+            reply_parameters=ReplyParameters(message_id=g.message_id, allow_sending_without_reply=True),
+        )
+    except TelegramAPIError as e:
+        return texts.CANCEL_POST_FAILED.format(error=escape(str(e)))
     return None
 
 

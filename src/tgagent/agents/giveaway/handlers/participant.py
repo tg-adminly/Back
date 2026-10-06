@@ -160,7 +160,8 @@ async def _try_join(bot: Bot, sm: async_sessionmaker, main_chat: ChatRef, giveaw
         g = await s.get(Giveaway, giveaway_id)
         if g is None:
             return texts.GIVEAWAY_NOT_FOUND, False
-        if g.status != GiveawayStatus.ACTIVE or g.ends_at <= utcnow():
+        # Jonli rejimda vaqt — eslatma: o'yin boshlanguncha (qatnashish yopilguncha) qo'shilish mumkin
+        if g.status != GiveawayStatus.ACTIVE or (g.auto_draw and g.ends_at <= utcnow()):
             return texts.GIVEAWAY_CLOSED, False
         existing = await service.get_participant(s, g.id, user.id)
         if existing:

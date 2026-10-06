@@ -28,11 +28,13 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 
 1. Owner rozigrish yaratadi: o'rinlar soni, **har bir o'rin uchun alohida sovrin** (pul summasi yoki buyum nomi;
    «Qolganlariga ham» tugmasi bilan bir xil qilish mumkin), vaqt, homiy kanallar ro'yxati va **g'olibni aniqlash usuli**:
-   - 🎥 **Jonli o'yin** (standart): vaqt — eslatma. Shu vaqtda qatnashish yopiladi, egasi va muharrirga eslatma
-     keladi, bot o'zi g'olib aniqlamaydi va kanalga hech narsa tashlamaydi;
+   - 🎥 **Jonli o'yin** (standart): vaqt — faqat eslatma (postda «Jonli o'yin: <vaqt>»). Vaqt kelganda egasi va muharrirga
+     bir marta eslatma keladi; qatnashish **o'zi yopilmaydi**, bot g'olib aniqlamaydi va kanalga hech narsa tashlamaydi.
+     O'yinni istalgan paytda (vaqtdan oldin ham, keyin ham) jonli sahifadagi «Qatnashishni yopib, o'yinni boshlash» bilan boshlaydi;
    - 🤖 **Avtomatik**: vaqti kelganda bot o'zi aniqlaydi va natijani kanalga tashlaydi (jonli o'yindagi qadamlarning o'zi:
      qayta tekshiruv → o'rinma-o'rin, chiqib ketganlar o'tkaziladi → e'lon). Xato bo'lsa — egasi/muharrirga jonli o'yin havolasi.
-   Faol rozigrishda vaqt va usulni o'zgartirish mumkin (panel «O'zgartirish») — kanal posti ham yangilanadi.
+   Faol rozigrishda vaqt, usul va **homiylarni** (qo'shish/olib tashlash) o'zgartirish mumkin (panel «O'zgartirish») —
+   kanal posti ham yangilanadi. Yangi homiy qo'shilsa, oldin qatnashganlar ham unga obuna bo'lishi kerak (aks holda o'tkaziladi).
    Botdagi yaratishda ham ko'rib chiqish oynasida usulni almashtirish tugmasi bor.
 2. Bot har bir homiy kanalda admin bo'lishi shart (obunani tekshirish uchun) — bot buni oldindan tekshiradi.
    Yopiq kanal: Bot API `t.me/+...` linkdan kanalni topa olmaydi, shuning uchun bot admin qilingan kanallarni
@@ -41,9 +43,10 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 4. User tugmani **postning o'zida** bosadi (RandomGodBot kabi — botga kirish shart emas), bot obunani tekshirib popup chiqaradi:
    - hammasiga obuna → ishtirokchi bo'ladi, popupda raqami;
    - yo'q → popupda obuna bo'lmagan kanallar ro'yxati, obuna bo'lib qayta bosadi.
-5. Tugash vaqtida **qatnashish yopiladi** (ro'yxat qotiriladi) va bot **hamma ishtirokchining obunasini qayta tekshiradi**
-   (qatnashgandan keyin kanaldan chiqib ketganlar — qaysi kanaldan ekani bilan — randomga tushmaydi).
-   Jonli rejimda egasi va muharrirga natija va jonli o'yin havolasi keladi. O'yin boshlanmaguncha jonli sahifada «Qayta tekshirish» mumkin
+5. **Qatnashish yopiladi** (ro'yxat qotiriladi): avtomatik rejimda — vaqtida, jonli rejimda — o'yin boshlanganda
+   (yoki botdagi «Hozir yakunlash»). Bot **hamma ishtirokchining obunasini qayta tekshiradi**
+   (kanalga obuna bo'lmaganlar — qaysi kanal ekani bilan — randomga tushmaydi).
+   Botdan yopilsa, egasi va muharrirga natija va jonli o'yin havolasi keladi. O'yin boshlanmaguncha jonli sahifada «Qayta tekshirish» mumkin
    (qayta obuna bo'lganlar qaytadi); birinchi g'olib chiqqach ro'yxat o'zgarmaydi.
    Ishtirokchi bo'lmasa — darhol «ishtirokchi bo'lmadi» e'lon qilinadi.
 6. **Jonli o'yin** (panel, Owner yoki Editor): egasi/muharrir efirda ekranni ulashib, har o'rin uchun «G'olibni aniqlash»
@@ -59,6 +62,14 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 
 **Muhim:** rozigrish mantig'i (tekshiruv, random, ro'yxatlar) — oddiy kod, LLM emas.
 Ishonchli, arzon, xato qilmaydi. **G'olibni AI aniqlamaydi — botning random funksiyasi aniqlaydi.**
+
+### Bekor qilish
+
+- Faol yoki g'olib aniqlanayotgan (hali e'lon qilinmagan) rozigrishni Owner bekor qila oladi; kanaldagi post bilan nima qilish so'raladi:
+  - 📢 **E'lon qilish** (tavsiya): post «❌ ROZIGRISH BEKOR QILINDI» + chizilgan matn bilan tahrirlanadi, tugmalari olinadi,
+    kanalga qisqa xabar ketadi. Tahrirlashda vaqt cheklovi yo'q;
+  - 🗑 **O'chirish**: Telegram 48 soatdan eski postni botga o'chirtirmasligi mumkin — unda tugmalari olinadi va egasiga aytiladi;
+  - 🤫 **Tegmaslik**: kanalga hech narsa qilinmaydi.
 
 ### G'olib tanlash
 

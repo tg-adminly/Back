@@ -153,6 +153,7 @@ export interface PublicGiveaway {
   id: number
   title: string
   status: GiveawayStatus
+  auto_draw: boolean
   prizes: Prize[]
   ends_at: string
   timezone: string

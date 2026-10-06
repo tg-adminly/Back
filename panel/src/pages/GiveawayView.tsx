@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import { ApiError, api, type GiveawayDetail, type Participant } from '../api'
+import { ApiError, api, type GiveawayDetail, type Participant, type Sponsor } from '../api'
+import { SponsorModalBody } from './GiveawayNew'
 import {
   Button,
   Card,
@@ -15,6 +16,7 @@ import {
   Loading,
   Modal,
   WinnerBadge,
+  cx,
   endsAtLabel,
   formatDate,
   inputClass,
@@ -28,6 +30,7 @@ export default function GiveawayView() {
   const me = useMe()
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const g = useQuery({
     queryKey: ['giveaway', id],
     queryFn: () => api.get<GiveawayDetail>(`/giveaways/${id}`),
@@ -35,7 +38,7 @@ export default function GiveawayView() {
     refetchInterval: (q) => (q.state.data?.status === 'active' ? 10_000 : false),
   })
   const action = useMutation({
-    mutationFn: (what: 'finish' | 'cancel') => api.post(`/giveaways/${id}/${what}`),
+    mutationFn: () => api.post(`/giveaways/${id}/finish`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['giveaway', id] })
       qc.invalidateQueries({ queryKey: ['giveaways'] })
@@ -65,9 +68,12 @@ export default function GiveawayView() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {(d.status === 'drawing' || d.status === 'finished') && d.participants > 0 && (
+          {/* Jonli rejimda o'yin istalgan paytda (vaqtdan oldin ham, keyin ham) jonli sahifadan boshlanadi */}
+          {((d.status === 'active' && !d.auto_draw) || ((d.status === 'drawing' || d.status === 'finished') && d.participants > 0)) && (
             <Link to={`/giveaways/${d.id}/live`}>
-              <Button variant={d.status === 'drawing' ? 'primary' : 'secondary'}>🎥 Jonli o'yin</Button>
+              <Button variant={d.status === 'finished' ? 'secondary' : 'primary'}>
+                {d.status === 'active' ? "🎥 O'yinni boshlash" : "🎥 Jonli o'yin"}
+              </Button>
             </Link>
           )}
           {d.post_url && (
@@ -82,28 +88,27 @@ export default function GiveawayView() {
                   ✏️ O'zgartirish
                 </Button>
               )}
-              <ConfirmButton
-                question={
-                  d.auto_draw
-                    ? "Qatnashishni hozir yopaymi? 1 daqiqa ichida bot g'oliblarni o'zi aniqlab, kanalga e'lon qiladi."
-                    : "Qatnashishni hozir yopaymi? 1 daqiqa ichida yopiladi, keyin g'oliblarni jonli o'yinda aniqlaysiz."
-                }
-                onConfirm={() => action.mutate('finish')}
-                pending={action.isPending}
-              >
-                ⏹ Qatnashishni yopish
-              </ConfirmButton>
-              {isOwner && (
-                <ConfirmButton variant="danger" question="Rozigrishni bekor qilaymi? G'olib aniqlanmaydi." onConfirm={() => action.mutate('cancel')} pending={action.isPending}>
-                  Bekor qilish
+              {d.auto_draw && (
+                <ConfirmButton
+                  question="Qatnashishni hozir yopaymi? Bot obunani tekshirib, g'oliblarni darhol aniqlaydi va kanalga e'lon qiladi."
+                  onConfirm={() => action.mutate()}
+                  pending={action.isPending}
+                >
+                  ⏹ Hozir yakunlash
                 </ConfirmButton>
               )}
             </>
+          )}
+          {isOwner && (d.status === 'active' || d.status === 'drawing') && (
+            <Button variant="danger" onClick={() => setCancelling(true)}>
+              Bekor qilish
+            </Button>
           )}
         </div>
       </div>
       <ErrorBox error={action.error} />
       {editing && <EditModal d={d} onClose={() => setEditing(false)} />}
+      {cancelling && <CancelModal d={d} onClose={() => setCancelling(false)} />}
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
@@ -116,7 +121,7 @@ export default function GiveawayView() {
         </Card>
         <Card>
           <div className="text-base font-semibold">{formatDate(d.ends_at, me.timezone)}</div>
-          <div className="text-xs text-zinc-500">{d.auto_draw ? (d.status === 'active' ? 'yakunlanadi' : 'yakun vaqti') : "o'yin vaqti"}</div>
+          <div className="text-xs text-zinc-500">{d.auto_draw ? (d.status === 'active' ? 'yakunlanadi' : 'yakun vaqti') : "o'yin vaqti (taxminiy)"}</div>
         </Card>
         <Card>
           <div className="text-base font-semibold">{d.auto_draw ? '🤖 Avtomatik' : "🎥 Jonli o'yin"}</div>
@@ -205,10 +210,20 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
   const [autoDraw, setAutoDraw] = useState(d.auto_draw)
   const initialEndsAt = toLocalInput(d.ends_at, me.timezone)
   const [endsAt, setEndsAt] = useState(initialEndsAt)
+  const [sponsorIds, setSponsorIds] = useState(() => d.sponsors.map((s) => s.id))
+  const [addingSponsor, setAddingSponsor] = useState(false)
+  const sponsors = useQuery({ queryKey: ['sponsors'], queryFn: () => api.get<Sponsor[]>('/sponsors') })
+  const known = new Map([...d.sponsors, ...(sponsors.data ?? [])].map((s) => [s.id, s]))
+  const chosen = sponsorIds.map((sid) => known.get(sid)).filter((s): s is Sponsor => !!s)
+  const added = sponsorIds.some((sid) => !d.sponsors.some((s) => s.id === sid))
   const save = useMutation({
     // Vaqt o'zgarmagan bo'lsa yubormaymiz (tekshiruv faqat yangi vaqt uchun)
     mutationFn: () =>
-      api.patch<{ warning: string | null }>(`/giveaways/${d.id}`, { auto_draw: autoDraw, ends_at: endsAt === initialEndsAt ? null : endsAt }),
+      api.patch<{ warning: string | null }>(`/giveaways/${d.id}`, {
+        auto_draw: autoDraw,
+        ends_at: endsAt === initialEndsAt ? null : endsAt,
+        sponsor_ids: sponsorIds,
+      }),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['giveaway', String(d.id)] })
       qc.invalidateQueries({ queryKey: ['giveaways'] })
@@ -235,6 +250,38 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
           <Field label={endsAtLabel(autoDraw)} error={fieldErrors.ends_at}>
             <input type="datetime-local" className={inputClass} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
           </Field>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-sm font-medium">Homiy kanallar</span>
+              <Button variant="ghost" onClick={() => setAddingSponsor(true)}>
+                + Qo'shish
+              </Button>
+            </div>
+            {chosen.length ? (
+              <div className="space-y-0.5">
+                {chosen.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-1">
+                    <div className="min-w-0 flex-1 truncate text-sm">{s.title}</div>
+                    <button
+                      type="button"
+                      className="text-lg leading-none text-zinc-400 hover:text-red-600"
+                      aria-label="Olib tashlash"
+                      onClick={() => setSponsorIds((ids) => ids.filter((x) => x !== s.id))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-2 text-sm text-zinc-500">Homiysiz</div>
+            )}
+            {added && d.participants > 0 && (
+              <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                ⚠️ Avval qatnashgan {d.participants} kishi ham yangi homiyga obuna bo'lishi kerak — aks holda o'yinda o'tkazib yuboriladi.
+              </p>
+            )}
+          </div>
           <p className="text-xs text-zinc-500">Kanaldagi post ham yangilanadi.</p>
           {!fieldErrors.ends_at && <ErrorBox error={save.error} />}
           <div className="flex justify-end gap-2">
@@ -247,6 +294,91 @@ function EditModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
           </div>
         </div>
       )}
+      {addingSponsor && (
+        <Modal title="Homiy kanal qo'shish" onClose={() => setAddingSponsor(false)}>
+          <SponsorModalBody
+            sponsors={(sponsors.data ?? []).filter((s) => !sponsorIds.includes(s.id))}
+            onChoose={(ids) => {
+              setSponsorIds((cur) => [...cur, ...ids.filter((x) => !cur.includes(x))])
+              setAddingSponsor(false)
+            }}
+          />
+        </Modal>
+      )}
+    </Modal>
+  )
+}
+
+const CANCEL_MODES = [
+  {
+    mode: 'announce',
+    title: "📢 Bekor qilinganini e'lon qilish (tavsiya)",
+    text: "Post «❌ BEKOR QILINDI» deb belgilanadi, tugmalari olinadi, kanalga qisqa xabar ketadi.",
+  },
+  {
+    mode: 'delete',
+    title: "🗑 Postni o'chirish",
+    text: "Telegram 48 soatdan eski postni o'chirtirmasligi mumkin — unda faqat tugmalari olinadi.",
+  },
+  { mode: 'silent', title: '🤫 Kanalga tegmaslik', text: "Post o'zgarmaydi. «Qatnashish» bosilsa — «yakunlangan» deydi." },
+] as const
+
+function CancelModal({ d, onClose }: { d: GiveawayDetail; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [mode, setMode] = useState<(typeof CANCEL_MODES)[number]['mode']>('announce')
+  const cancel = useMutation({
+    mutationFn: () => api.post<{ warning: string | null }>(`/giveaways/${d.id}/cancel`, { mode }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['giveaway', String(d.id)] })
+      qc.invalidateQueries({ queryKey: ['giveaways'] })
+      qc.invalidateQueries({ queryKey: ['stats'] })
+      if (!r.warning) onClose()
+    },
+  })
+
+  if (cancel.data?.warning) {
+    return (
+      <Modal title="Bekor qilindi" onClose={onClose}>
+        <p className="mb-5 text-sm">⚠️ {cancel.data.warning}</p>
+        <div className="text-right">
+          <Button onClick={onClose}>Yopish</Button>
+        </div>
+      </Modal>
+    )
+  }
+
+  return (
+    <Modal title="Rozigrishni bekor qilish" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">«{d.title}» bekor qilinadi, g'olib aniqlanmaydi. Kanaldagi post bilan nima qilay?</p>
+        <div className="space-y-2" role="radiogroup">
+          {CANCEL_MODES.map((m) => (
+            <button
+              key={m.mode}
+              type="button"
+              role="radio"
+              aria-checked={mode === m.mode}
+              onClick={() => setMode(m.mode)}
+              className={cx(
+                'w-full rounded-xl p-3 text-left ring-1 transition',
+                mode === m.mode ? 'bg-red-50 ring-2 ring-red-500 dark:bg-red-950/30' : 'ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800',
+              )}
+            >
+              <div className="text-sm font-medium">{m.title}</div>
+              <div className="mt-0.5 text-xs text-zinc-500">{m.text}</div>
+            </button>
+          ))}
+        </div>
+        <ErrorBox error={cancel.error} />
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            Orqaga
+          </Button>
+          <Button variant="danger" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
+            {cancel.isPending ? 'Bekor qilinmoqda…' : 'Bekor qilish'}
+          </Button>
+        </div>
+      </div>
     </Modal>
   )
 }

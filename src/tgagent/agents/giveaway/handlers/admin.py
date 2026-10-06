@@ -12,9 +12,10 @@ from aiogram.types import CallbackQuery, Message, MessageOriginChannel
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from tgagent.agents.giveaway import keyboards as kb
-from tgagent.agents.giveaway import actions, service, texts
+from tgagent.agents.giveaway import actions, jobs, service, texts
 from tgagent.agents.giveaway.models import Giveaway
 from tgagent.agents.giveaway.validators import parse_local_datetime, parse_prize
+from tgagent.channels.telegram_bot.chats import ChatRef
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
 from tgagent.core.db import utcnow
@@ -222,7 +223,9 @@ def build_router(settings: Settings) -> Router:
             await message.answer(texts.active_item(g, count, settings.tz), reply_markup=kb.manage(g.id))
 
     @router.callback_query(kb.ManageCB.filter())
-    async def manage(cb: CallbackQuery, callback_data: kb.ManageCB, sm: async_sessionmaker):
+    async def manage(
+        cb: CallbackQuery, callback_data: kb.ManageCB, bot: Bot, sm: async_sessionmaker, main_chat: ChatRef
+    ):
         gid = callback_data.giveaway_id
         async with sm() as s:
             g = await s.get(Giveaway, gid)
@@ -230,23 +233,27 @@ def build_router(settings: Settings) -> Router:
         if not callback_data.confirmed:
             if callback_data.action == "finish":
                 prompt = texts.CONFIRM_FINISH.format(id=gid, next=texts.FINISH_NEXT_AUTO if auto else texts.FINISH_NEXT_LIVE)
+                markup = kb.manage_confirm("finish", gid)
             else:
-                prompt = texts.CONFIRM_CANCEL.format(id=gid)
-            await cb.message.answer(prompt, reply_markup=kb.manage_confirm(callback_data.action, gid))
+                prompt, markup = texts.CANCEL_ASK.format(id=gid), kb.manage_cancel(gid)
+            await cb.message.answer(prompt, reply_markup=markup)
             await cb.answer()
             return
-        async with sm() as s:
-            if callback_data.action == "finish":
-                ok, reply = await service.finish_now(s, gid), texts.FINISH_SCHEDULED
-            else:
-                ok, reply = await service.cancel_giveaway(s, gid), texts.GIVEAWAY_CANCELLED
-        if not ok:
-            await cb.answer(texts.NOT_ACTIVE, show_alert=True)
-            return
+
+        if callback_data.action == "finish":
+            if not await jobs.close_now(bot, sm, settings, main_chat, gid, notify=True):
+                await cb.answer(texts.NOT_ACTIVE, show_alert=True)
+                return
+            reply = texts.FINISH_DONE.format(id=gid, next=texts.FINISH_DONE_AUTO if auto else texts.FINISH_DONE_LIVE)
+        else:
+            try:
+                warning = await actions.cancel_giveaway(bot, settings, sm, gid, actions.CancelMode(callback_data.mode))
+            except actions.ActionError as e:
+                await cb.answer(e.message, show_alert=True)
+                return
+            reply = warning or texts.GIVEAWAY_CANCELLED.format(id=gid)
         await cb.message.edit_reply_markup(reply_markup=None)
-        await cb.message.answer(
-            reply.format(id=gid, next=texts.FINISH_SCHEDULED_AUTO if auto else texts.FINISH_SCHEDULED_LIVE)
-        )
+        await cb.message.answer(reply)
         await cb.answer()
 
     # --- To'lovlar ---

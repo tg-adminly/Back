@@ -15,12 +15,12 @@ async def sm():
     await engine.dispose()
 
 
-async def _giveaway(s, ends_in=timedelta(hours=1)):
+async def _giveaway(s, ends_in=timedelta(hours=1), auto_draw=False):
     sponsor = await service.upsert_sponsor(s, -1001, "Homiy", "https://t.me/homiy")
     return await service.create_giveaway(
         s, title="Test", description="Sovg'a",
         prizes=[Prize(PrizeType.MONEY, amount=500000), Prize(PrizeType.ITEM, name="iPhone 15")],
-        ends_at=utcnow() + ends_in, chat_id=-100, sponsor_ids=[sponsor.id],
+        ends_at=utcnow() + ends_in, chat_id=-100, sponsor_ids=[sponsor.id], auto_draw=auto_draw,
     )
 
 
@@ -40,7 +40,13 @@ async def test_participant_numbers_are_sequential_and_unique(sm):
 
 async def test_due_giveaways(sm):
     async with sm() as s:
-        future = await _giveaway(s)
-        past = await _giveaway(s, ends_in=timedelta(seconds=-1))
+        future = await _giveaway(s, auto_draw=True)
+        past = await _giveaway(s, ends_in=timedelta(seconds=-1), auto_draw=True)
+        live = await _giveaway(s, ends_in=timedelta(seconds=-1))
+        # Avtomatik — bot yopadi; jonli — faqat eslatma (qatnashish ochiq qoladi)
         assert await service.due_giveaway_ids(s) == [past.id]
+        assert await service.due_reminder_ids(s) == [live.id]
+        live.reminded_at = utcnow()
+        await s.commit()
+        assert await service.due_reminder_ids(s) == []
         assert future.ends_at.tzinfo is not None

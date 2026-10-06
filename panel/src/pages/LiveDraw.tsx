@@ -25,7 +25,8 @@ export default function LiveDraw() {
     queryFn: () => api.get<LiveState>(`/giveaways/${id}/live`),
     refetchOnWindowFocus: false,
     // Obuna tekshiruvi ketayotganda jarayonni ko'rsatib turamiz
-    refetchInterval: (query) => (query.state.data?.check ? 1000 : false),
+    // Tekshiruv ketayotganda — jarayon; qatnashish ochiq paytda — ishtirokchilar soni
+    refetchInterval: (query) => (query.state.data?.check ? 1000 : query.state.data?.status === 'active' ? 10_000 : false),
   })
   // Sahifa ochilgandan keyin chiqqanlar shu yerda — animatsiya tugagach ro'yxatga qo'shiladi
   const [picks, setPicks] = useState<LivePick[] | null>(null)
@@ -34,6 +35,7 @@ export default function LiveDraw() {
   const [error, setError] = useState<string | null>(null)
   const [exhausted, setExhausted] = useState(false)
   const [announcing, setAnnouncing] = useState<'ask' | 'sending' | null>(null)
+  const [starting, setStarting] = useState<'ask' | 'sending' | null>(null)
   const [announced, setAnnounced] = useState(false)
   const alive = useRef(true)
   useEffect(() => {
@@ -57,6 +59,22 @@ export default function LiveDraw() {
   const eligible = d ? d.participants - d.excluded.length : 0
   // Shartni bajarmaganlar: o'yindan oldingi tekshiruvda chiqib ketganlar + o'yinda o'tkazib yuborilganlar
   const dropped = [...(d?.excluded ?? []), ...skipped]
+
+  /** Jonli rejim: qatnashishni yopib, o'yinni boshlash (vaqtdan oldin ham, keyin ham) */
+  async function start() {
+    setStarting('sending')
+    setError(null)
+    try {
+      await api.post(`/giveaways/${id}/finish`)
+      qc.invalidateQueries({ queryKey: ['giveaway', id] })
+      qc.invalidateQueries({ queryKey: ['giveaways'] })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setStarting(null)
+    }
+    await qc.invalidateQueries({ queryKey: ['live', id] })
+  }
 
   async function check() {
     setError(null)
@@ -237,7 +255,7 @@ export default function LiveDraw() {
             </ol>
             {dropped.length > 0 && (
               <div className="mt-2 max-h-[30%] shrink-0 overflow-y-auto border-t border-white/10 px-1 pt-2 text-xs text-white/50 lg:mt-3 lg:pt-3">
-                <span className="font-semibold text-red-300/80">❌ Homiy kanaldan chiqqani uchun qatnashmaydi ({dropped.length}): </span>
+                <span className="font-semibold text-red-300/80">❌ Kanalga obuna bo'lmagani uchun qatnashmaydi ({dropped.length}): </span>
                 <span className="line-clamp-2 md:line-clamp-none short:line-clamp-1">
                   {dropped.map((p) => `#${p.number} ${p.name}${p.missing.length ? ` (${p.missing.join(', ')})` : ''}`).join(' · ')}
                 </span>
@@ -259,7 +277,7 @@ export default function LiveDraw() {
               <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-white/60">
                 <span>
                   {d.excluded.length
-                    ? `🔄 Obuna tekshirildi: ${d.excluded.length} kishi chiqib ketgan`
+                    ? `🔄 Obuna tekshirildi: ${d.excluded.length} kishi obuna emas`
                     : '🔄 Obuna tekshirildi: hamma shartni bajargan'}
                 </span>
                 <button onClick={check} className="rounded-full px-3 py-1 text-pink-300 ring-1 ring-pink-300/40 hover:bg-pink-300/10">
@@ -273,13 +291,25 @@ export default function LiveDraw() {
           )}
           {error && <div className="rounded-xl bg-red-500/15 px-4 py-2 text-sm text-red-200 ring-1 ring-red-400/30">{error}</div>}
           <div className="flex flex-wrap items-center justify-center gap-3">
-            {d.status === 'active' ? (
-              <div className="text-white/60">
-                Qatnashish hali yopilmagan.{' '}
+            {d.status === 'active' && d.auto_draw ? (
+              <div className="text-center text-white/60">
+                🤖 Bu rozigrishda g'olibni bot avtomatik aniqlaydi.{' '}
                 <Link to={`/giveaways/${d.id}`} className="text-pink-300 underline">
                   Rozigrish sahifasi
                 </Link>
               </div>
+            ) : d.status === 'active' && starting === 'ask' ? (
+              <>
+                <span className="w-full text-center text-white/80 sm:w-auto">Qatnashish yopiladi — keyin hech kim qo'shila olmaydi. Boshlaymizmi?</span>
+                <BigButton onClick={start}>Ha, boshlaymiz</BigButton>
+                <button onClick={() => setStarting(null)} className="px-4 py-3 text-white/60 hover:text-white">
+                  Yo'q
+                </button>
+              </>
+            ) : d.status === 'active' ? (
+              <BigButton onClick={() => setStarting('ask')} disabled={starting === 'sending'}>
+                {starting === 'sending' ? 'Yopilmoqda…' : "⏹ Qatnashishni yopib, o'yinni boshlash"}
+              </BigButton>
             ) : finished ? (
               <div className="rounded-full bg-green-500/15 px-6 py-3 font-semibold text-green-200 ring-1 ring-green-400/30">
                 ✅ Natija kanalga e'lon qilindi
@@ -356,7 +386,7 @@ function StageView({
         <div className="text-3xl font-bold break-words text-white/50 line-through decoration-red-400 sm:text-4xl lg:text-7xl">{p.name}</div>
         <div className="mt-1 text-lg text-white/40 tabular-nums lg:mt-2 lg:text-3xl">#{p.number}</div>
         <div className="mt-4 rounded-full bg-red-500/20 px-4 py-1.5 text-sm font-semibold text-red-200 lg:mt-6 lg:px-5 lg:py-2 lg:text-xl">
-          ❌ {p.missing.length ? `«${p.missing.join('», «')}» kanalidan chiqib ketgan` : 'Kanaldan chiqib ketgan'} — o'tkazib yuborildi
+          ❌ {p.missing.length ? `«${p.missing.join('», «')}» kanaliga obuna emas` : 'Kanalga obuna emas'} — o'tkazib yuborildi
         </div>
         {busy && <div className="mt-3 text-sm text-white/50">Qayta aylantiramiz…</div>}
       </section>
@@ -386,6 +416,13 @@ function StageView({
         <>
           <div className="text-2xl font-bold sm:text-3xl lg:text-5xl">Barcha g'oliblar aniqlandi!</div>
           <div className="mt-3 text-lg text-white/60">Tabriklaymiz! 💕</div>
+        </>
+      ) : d.status === 'active' ? (
+        <>
+          <div className="text-2xl font-bold sm:text-3xl lg:text-5xl">Qatnashish davom etmoqda</div>
+          <div className="mt-2 text-base text-white/60 sm:text-lg lg:mt-3 lg:text-2xl">
+            {d.participants} ishtirokchi · {d.winners_count} ta g'olib
+          </div>
         </>
       ) : (
         <>

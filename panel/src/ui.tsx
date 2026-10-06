@@ -225,7 +225,7 @@ const DRAW_MODES = [
   {
     auto: false,
     title: "🎥 Jonli o'yin",
-    text: "Vaqt — eslatma. Shu vaqtda qatnashish yopiladi, siz yoki muharrir efirda g'olibni aniqlaysiz.",
+    text: "Vaqt — eslatma. O'yinni siz yoki muharrir istalgan paytda (oldinroq yoki keyinroq) efirda boshlaysiz, shungacha qatnashish ochiq.",
   },
   {
     auto: true,

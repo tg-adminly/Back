@@ -1,6 +1,7 @@
-"""Fon vazifa: vaqti kelgan rozigrishlarda qatnashishni yopish, obunani qayta tekshirish va (avtomatik rejimda) g'olibni aniqlash.
+"""Fon vazifa: avtomatik rejimda vaqti kelganda qatnashishni yopish, obunani qayta tekshirish va g'olibni aniqlash.
 
-Jonli rejimda bot g'olib aniqlamaydi — egasi yoki muharrir panelda jonli o'yin o'tkazadi (actions.reveal_next).
+Jonli rejimda vaqt — faqat eslatma: qatnashish ochiq qoladi, egasi yoki muharrir o'yinni istalgan paytda
+boshlaydi (close_now → actions.reveal_next).
 """
 
 import asyncio
@@ -15,10 +16,11 @@ from aiogram.types import ReplyParameters
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from tgagent.agents.giveaway import draw, service, texts
-from tgagent.agents.giveaway.models import Giveaway, GiveawayStatus
+from tgagent.agents.giveaway.models import Giveaway, GiveawayStatus, Participant
 from tgagent.channels.telegram_bot.chats import ChatRef, bot_is_admin, missing_chats
 from tgagent.channels.telegram_bot.notify import notify_users
 from tgagent.config import Settings
+from tgagent.core.db import utcnow
 
 log = logging.getLogger(__name__)
 
@@ -65,52 +67,105 @@ async def draw_loop(bot: Bot, sm: async_sessionmaker, settings: Settings, main_c
     while True:
         try:
             async with sm() as s:
-                ids = await service.due_giveaway_ids(s)
-            for gid in ids:
+                due = await service.due_giveaway_ids(s)
+                reminders = await service.due_reminder_ids(s)
+            for gid in due:
                 await close_participation(bot, sm, settings, main_chat, gid)
+            for gid in reminders:
+                await remind(bot, sm, settings, gid)
         except Exception:
             log.exception("draw_loop xatosi")
         await asyncio.sleep(POLL_SECONDS)
 
 
-async def close_participation(bot: Bot, sm: async_sessionmaker, settings: Settings, main_chat: ChatRef, giveaway_id: int):
-    """Ro'yxatni qotiradi, obunani qayta tekshiradi va jonli o'yinga o'tkazadi. Ishtirokchi bo'lmasa — darhol yakunlaydi."""
+async def remind(bot: Bot, sm: async_sessionmaker, settings: Settings, giveaway_id: int):
+    """Jonli rejim: vaqt keldi — egasi va muharrirga eslatma. Qatnashish ochiq qoladi."""
+    async with sm() as s:
+        g = await s.get(Giveaway, giveaway_id)
+        if g is None or g.status != GiveawayStatus.ACTIVE or g.auto_draw or g.reminded_at:
+            return
+        g.reminded_at = utcnow()
+        await s.commit()
+        count = await service.participants_count(s, g.id)
+    await notify_users(bot, staff_ids(settings), texts.live_reminder(g, count, live_url(settings, g.id)))
+
+
+async def freeze(sm: async_sessionmaker, giveaway_id: int) -> tuple[Giveaway, list[Participant]] | None:
+    """Qatnashishni yopadi va ro'yxatni qotiradi. Ishtirokchi bo'lmasa — darhol FINISHED."""
     async with sm() as s:
         g = await s.get(Giveaway, giveaway_id)
         if g is None or g.status != GiveawayStatus.ACTIVE:
-            return
+            return None
         parts = await service.list_participants(s, g.id)
         g.list_hash = draw.participants_hash((p.number, p.user_id) for p in parts)
         g.status = GiveawayStatus.DRAWING if parts else GiveawayStatus.FINISHED
         await s.commit()
-
     log.info("Rozigrish #%s: qatnashish yopildi, %s ishtirokchi", giveaway_id, len(parts))
-    if parts:
-        try:
-            excluded = await check_subscriptions(bot, sm, main_chat, giveaway_id)
-        except Exception:
-            log.exception("Rozigrish #%s: obunani tekshirib bo'lmadi", giveaway_id)
-            excluded = None
-        url = live_url(settings, g.id)
-        if g.auto_draw:
-            # actions jobs'ni import qiladi — aylanma importdan qochish uchun shu yerda
-            from tgagent.agents.giveaway.actions import run_auto_draw
+    return g, parts
 
-            try:
-                await run_auto_draw(bot, settings, sm, main_chat, g.id)
-            except Exception as e:
-                log.exception("Rozigrish #%s: avtomatik aniqlab bo'lmadi", giveaway_id)
-                error = getattr(e, "message", None) or escape(str(e))
-                await notify_users(bot, staff_ids(settings), texts.auto_draw_failed(g, error, url))
-            return
-        # Vaqt — eslatma: o'yinni egasi yoki muharrir jonli o'tkazadi
-        await notify_users(bot, staff_ids(settings), texts.live_ready(g, len(parts), excluded, url))
+
+async def close_participation(bot: Bot, sm: async_sessionmaker, settings: Settings, main_chat: ChatRef, giveaway_id: int):
+    """Qatnashishni yopadi va oxirigacha olib boradi (fonda yoki botdagi «Hozir yakunlash»)."""
+    frozen = await freeze(sm, giveaway_id)
+    if frozen:
+        await _after_close(bot, sm, settings, main_chat, *frozen, notify=True)
+
+
+_close_tasks: set[asyncio.Task] = set()
+
+
+async def close_now(bot: Bot, sm: async_sessionmaker, settings: Settings, main_chat: ChatRef, giveaway_id: int, *, notify: bool) -> bool:
+    """Qatnashishni shu zahoti yopadi; obuna tekshiruvi (va avtomatik rejimda aniqlash) fonda davom etadi.
+
+    Qaytgan paytda tekshiruv allaqachon `checks` da — jonli sahifa jarayonni darhol ko'radi.
+    """
+    frozen = await freeze(sm, giveaway_id)
+    if frozen is None:
+        return False
+    task = asyncio.create_task(_after_close(bot, sm, settings, main_chat, *frozen, notify=notify))
+    _close_tasks.add(task)
+    task.add_done_callback(_close_tasks.discard)
+    await asyncio.sleep(0)  # check_subscriptions birinchi await'gacha yuradi va `checks` ni to'ldiradi
+    return True
+
+
+async def _after_close(
+    bot: Bot,
+    sm: async_sessionmaker,
+    settings: Settings,
+    main_chat: ChatRef,
+    g: Giveaway,
+    parts: list[Participant],
+    *,
+    notify: bool,
+):
+    """Obunani qayta tekshiradi; avtomatik rejimda g'olibni aniqlab e'lon qiladi, jonli rejimda — xabar beradi."""
+    if not parts:
+        reply = ReplyParameters(message_id=g.message_id, allow_sending_without_reply=True) if g.message_id else None
+        try:
+            await bot.send_message(g.chat_id, texts.NO_PARTICIPANTS.format(title=escape(g.title)), reply_parameters=reply)
+        except TelegramAPIError:
+            log.exception("Rozigrish #%s: natijani yuborib bo'lmadi", g.id)
         return
-    reply = ReplyParameters(message_id=g.message_id, allow_sending_without_reply=True) if g.message_id else None
     try:
-        await bot.send_message(g.chat_id, texts.NO_PARTICIPANTS.format(title=escape(g.title)), reply_parameters=reply)
-    except TelegramAPIError:
-        log.exception("Rozigrish #%s: natijani yuborib bo'lmadi", giveaway_id)
+        excluded = await check_subscriptions(bot, sm, main_chat, g.id)
+    except Exception:
+        log.exception("Rozigrish #%s: obunani tekshirib bo'lmadi", g.id)
+        excluded = None
+    url = live_url(settings, g.id)
+    if g.auto_draw:
+        # actions jobs'ni import qiladi — aylanma importdan qochish uchun shu yerda
+        from tgagent.agents.giveaway.actions import run_auto_draw
+
+        try:
+            await run_auto_draw(bot, settings, sm, main_chat, g.id)
+        except Exception as e:
+            log.exception("Rozigrish #%s: avtomatik aniqlab bo'lmadi", g.id)
+            error = getattr(e, "message", None) or escape(str(e))
+            await notify_users(bot, staff_ids(settings), texts.auto_draw_failed(g, error, url))
+        return
+    if notify:
+        await notify_users(bot, staff_ids(settings), texts.live_ready(g, len(parts), excluded, url))
 
 
 async def check_subscriptions(bot: Bot, sm: async_sessionmaker, main_chat: ChatRef, giveaway_id: int) -> int:
