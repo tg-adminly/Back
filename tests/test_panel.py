@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
@@ -11,6 +12,7 @@ from tgagent.channels.telegram_bot.chats import ChatRef
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
 from tgagent.core.db import init_db, make_engine, make_sessionmaker
+from tgagent.panel import api as panel_api
 from tgagent.panel.api import Deps, sponsor_ref
 from tgagent.panel.auth import LoginRequests
 from tgagent.panel.server import create_app
@@ -22,6 +24,7 @@ H = {"x-panel": "1"}
 class FakeBot:
     def __init__(self):
         self.sent = []
+        self.left: set[int] = set()  # kanaldan chiqib ketgan user_id lar
 
     async def me(self):
         return SimpleNamespace(id=999, username="test_bot")
@@ -30,7 +33,7 @@ class FakeBot:
         return SimpleNamespace(id=-1005, title="Homiy kanal", username="homiy", invite_link=None)
 
     async def get_chat_member(self, chat_id, user_id):
-        return SimpleNamespace(status="administrator")
+        return SimpleNamespace(status="left" if user_id in self.left else "administrator")
 
     async def send_message(self, chat_id, text, **kw):
         self.sent.append(("message", chat_id, text))
@@ -51,9 +54,10 @@ async def env(tmp_path):
     )
     bot, logins = FakeBot(), LoginRequests()
     vault = Vault(settings.fernet_key)
-    app = create_app(Deps(settings, bot, sm, vault, ChatRef(-100, "Kanal", "https://t.me/kanal"), logins), dist=tmp_path)
+    main_chat = ChatRef(-100, "Kanal", "https://t.me/kanal")
+    app = create_app(Deps(settings, bot, sm, vault, main_chat, logins), dist=tmp_path)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
-    yield SimpleNamespace(client=client, bot=bot, logins=logins, sm=sm, vault=vault)
+    yield SimpleNamespace(client=client, bot=bot, logins=logins, sm=sm, vault=vault, settings=settings, main_chat=main_chat)
     await client.aclose()
     await engine.dispose()
 
@@ -108,7 +112,7 @@ async def test_create_giveaway_flow(env):
     assert env.bot.sent[-1][1] == -100  # kanalga post chiqdi
 
     g = (await env.client.get(f"/api/giveaways/{gid}")).json()
-    assert g["winners_count"] == 3 and g["seed"] is None and g["post_url"] == "https://t.me/kanal/1"
+    assert g["winners_count"] == 3 and "seed" not in g and g["post_url"] == "https://t.me/kanal/1"
     assert [x["title"] for x in g["sponsors"]] == ["Homiy kanal"]
     # Faol rozigrishdagi homiyni o'chirib bo'lmaydi
     assert (await env.client.delete(f"/api/sponsors/{sp['id']}", headers=H)).status_code == 400
@@ -186,3 +190,71 @@ async def test_invite_link_in_ref_gives_clear_error(env):
     r = await env.client.post("/api/sponsors", json={"ref": "https://t.me/+l6U_QEwKs91jZDhi"}, headers=H)
     assert r.status_code == 400
     assert "Yopiq kanal" in r.json()["detail"]
+
+
+async def test_live_draw_flow(env):
+    from tgagent.agents.giveaway import jobs, service
+
+    await login(env)
+    body = {"title": "Jonli", "description": "Y", "prizes": ["300k", "200k"], "ends_at": future()}
+    gid = (await env.client.post("/api/giveaways", json=body, headers=H)).json()["id"]
+    async with env.sm() as s:
+        for uid, name in [(11, "Ali"), (12, "Vali"), (13, "Gani"), (14, "Sobir")]:
+            await service.add_participant(s, gid, uid, name, None)
+
+    # Ochiq ro'yxat: login shart emas, faqat ism va raqam
+    env.client.cookies.clear()
+    pub = (await env.client.get(f"/api/public/giveaways/{gid}")).json()
+    assert pub["participants"][0] == {"number": 1, "name": "Ali", "missing": []} and pub["winners"] == []
+    await login(env)
+
+    # Faol rozigrishda jonli o'yin boshlanmaydi
+    assert (await env.client.post(f"/api/giveaways/{gid}/live/next", headers=H)).status_code == 400
+    async with env.sm() as s:
+        await service.finish_now(s, gid)
+    # Sobir qatnashgandan keyin kanaldan chiqib ketgan — yopilishda qayta tekshiruv uni chiqarib tashlaydi
+    env.bot.left.add(14)
+    await jobs.close_participation(env.bot, env.sm, env.settings, env.main_chat, gid)
+    note = env.bot.sent[-1][2]
+    assert "/giveaways/%d/live" % gid in note and "1 kishi" in note  # egasiga havola va tekshiruv natijasi
+
+    state = (await env.client.get(f"/api/giveaways/{gid}/live")).json()
+    assert state["status"] == "drawing" and len(state["names"]) == 3 and state["picks"] == []
+    assert state["excluded"] == [{"number": 4, "name": "Sobir", "missing": ["Kanal"]}]
+    panel_api._public_cache.clear()  # ochiq sahifa 5 soniya keshlanadi
+    pub = (await env.client.get(f"/api/public/giveaways/{gid}")).json()
+    assert pub["participants"][3]["missing"] == ["Kanal"]
+
+    # Qayta obuna bo'ldi — o'yindan oldin ro'yxatni yangilasa, qaytib kiradi
+    env.bot.left.discard(14)
+    assert (await env.client.post(f"/api/giveaways/{gid}/live/check", headers=H)).json() == {"ok": True}
+    while (state := (await env.client.get(f"/api/giveaways/{gid}/live")).json())["check"]:
+        await asyncio.sleep(0.01)
+    assert state["excluded"] == [] and len(state["names"]) == 4 and state["check_error"] is None
+
+    # Random tartibidagi birinchi nomzod kanaldan chiqib ketgan — o'tkazib yuboriladi
+    async with env.sm() as s:
+        from tgagent.agents.giveaway.models import Giveaway
+
+        first = await service.next_candidate(s, await s.get(Giveaway, gid), [])
+    env.bot.left.add(first.user_id)
+    picks = (await env.client.post(f"/api/giveaways/{gid}/live/next", headers=H)).json()["picks"]
+    assert picks[0] == {"number": first.number, "name": first.full_name, "place": None, "missing": ["Kanal"]}
+    assert picks[-1]["place"] == 1 and len(picks) == 2
+    # O'yin boshlangach ro'yxat yangilanmaydi
+    assert (await env.client.post(f"/api/giveaways/{gid}/live/check", headers=H)).status_code == 400
+
+    # Hamma o'rin to'lmaguncha e'lon qilinmaydi
+    assert (await env.client.post(f"/api/giveaways/{gid}/live/announce", headers=H)).status_code == 400
+    picks = (await env.client.post(f"/api/giveaways/{gid}/live/next", headers=H)).json()["picks"]
+    assert picks[-1]["place"] == 2
+    assert (await env.client.post(f"/api/giveaways/{gid}/live/next", headers=H)).status_code == 400
+
+    sent_before = len(env.bot.sent)
+    assert (await env.client.post(f"/api/giveaways/{gid}/live/announce", headers=H)).json() == {"ok": True}
+    post = env.bot.sent[sent_before]
+    assert post[1] == -100 and "Seed" not in post[2] and f"#{first.number}" in post[2]  # o'tkazilgani ko'rsatiladi
+    g = (await env.client.get(f"/api/giveaways/{gid}")).json()
+    assert g["status"] == "finished" and [w["place"] for w in g["winners"]] == [1, 2]
+    pub = (await env.client.get(f"/api/public/giveaways/{gid}")).json()
+    assert [w["place"] for w in pub["winners"]] == [1, 2] and "user_id" not in pub["winners"][0]

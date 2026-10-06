@@ -37,7 +37,7 @@ USER_CONTENT = {
 def build_router(settings: Settings) -> Router:
     router = Router(name="giveaway_participant")
     router.message.filter(F.chat.type == ChatType.PRIVATE)
-    counter = JoinCounter()
+    counter = JoinCounter(settings.panel_url)
     throttle = ReplyThrottle()
     staff = set(settings.owner_ids) | set(settings.editor_ids)
     # Egasi/muharrir g'olib bo'lsa, ularning oddiy xabarlari karta deb o'qilmasin:
@@ -213,7 +213,8 @@ class JoinCounter:
 
     DELAY = 5
 
-    def __init__(self):
+    def __init__(self, panel_url: str):
+        self._panel_url = panel_url
         self._pending: dict[int, asyncio.Task] = {}
 
     def schedule(self, bot: Bot, sm: async_sessionmaker, giveaway_id: int) -> None:
@@ -230,9 +231,8 @@ class JoinCounter:
             if g is None or g.status != GiveawayStatus.ACTIVE or not g.message_id:
                 return
             sponsors = [ChatRef(sp.chat_id, sp.title, sp.link) for sp in g.sponsors]
-            await bot.edit_message_reply_markup(
-                chat_id=g.chat_id, message_id=g.message_id, reply_markup=kb.giveaway_post(sponsors, g.id, count)
-            )
+            markup = kb.giveaway_post(sponsors, g.id, count, kb.participants_url(self._panel_url, g.id))
+            await bot.edit_message_reply_markup(chat_id=g.chat_id, message_id=g.message_id, reply_markup=markup)
         except TelegramRetryAfter as e:
             log.info("Hisoblagich: RetryAfter %ss", e.retry_after)
             await asyncio.sleep(e.retry_after)

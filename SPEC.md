@@ -35,9 +35,16 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 4. User tugmani **postning o'zida** bosadi (RandomGodBot kabi — botga kirish shart emas), bot obunani tekshirib popup chiqaradi:
    - hammasiga obuna → ishtirokchi bo'ladi, popupda raqami;
    - yo'q → popupda obuna bo'lmagan kanallar ro'yxati, obuna bo'lib qayta bosadi.
-5. Tugash vaqtida: ishtirokchilar obunasi qayta tekshiriladi (chiqib ketganlar chetlanadi),
-   g'oliblar **tekshirsa bo'ladigan** random bilan tanlanadi (seed + formula e'lon qilinadi).
-6. G'oliblar kanalda e'lon qilinadi, natija postida **"Yutuqni olish"** tugmasi (botga deep-link).
+5. Tugash vaqtida **qatnashish yopiladi** (ro'yxat qotiriladi) va bot **hamma ishtirokchining obunasini qayta tekshiradi**
+   (qatnashgandan keyin kanaldan chiqib ketganlar — qaysi kanaldan ekani bilan — randomga tushmaydi).
+   Egasiga natija va jonli o'yin havolasi keladi. O'yin boshlanmaguncha jonli sahifada «Qayta tekshirish» mumkin
+   (qayta obuna bo'lganlar qaytadi); birinchi g'olib chiqqach ro'yxat o'zgarmaydi.
+   Ishtirokchi bo'lmasa — darhol «ishtirokchi bo'lmadi» e'lon qilinadi.
+6. **Jonli o'yin** (panel, faqat Owner): egasi efirda ekranni ulashib, har o'rin uchun «G'olibni aniqlash»
+   (yoki Probel) bosadi → baraban aylanadi → g'olib chiqadi. Chiqqan nomzodning obunasi shu zahoti tekshiriladi:
+   chiqib ketgan bo'lsa ekranda «❌ «kanal» kanalidan chiqib ketgan — o'tkazib yuborildi» ko'rinadi va baraban qayta aylanadi.
+   Hamma o'rinlar to'lgach «Natijani kanalga e'lon qilish» → efirda ko'ringan g'oliblar kanalga chiqadi,
+   natija postida **"Yutuqni olish"** tugmasi (botga deep-link). G'olib yozuvlari (Winner) faqat e'londa yaratiladi.
    Bot g'olibga faqat u botni ochgan bo'lsa yoza oladi — shuning uchun g'olib shu tugma orqali kiradi:
    - pul sovrin → karta raqami + karta egasi ismi;
    - buyum sovrin → ism, telefon, manzil (BTS pochta uchun).
@@ -47,14 +54,19 @@ reklama muzokaralari, kontent. Hamma muhim qadamlar egasining nazoratida.
 **Muhim:** rozigrish mantig'i (tekshiruv, random, ro'yxatlar) — oddiy kod, LLM emas.
 Ishonchli, arzon, xato qilmaydi. **G'olibni AI aniqlamaydi — botning random funksiyasi aniqlaydi.**
 
-### G'olib tanlash (tekshirsa bo'ladigan random)
+### G'olib tanlash
 
-1. Rozigrish e'lon qilinganda bot maxfiy `seed` yaratadi va postda faqat uning hash'ini
-   (`sha256(seed)`) chop etadi — bu "oldindan qulflangan" son, keyin o'zgartirib bo'lmaydi.
-2. Tugash vaqtida ishtirokchilar ro'yxati qotiriladi va uning hash'i hisoblanadi.
-3. G'oliblar `sha256(seed + ro'yxat_hash + tartib_raqami)` asosida tanlanadi.
-4. Natija postida `seed`, ro'yxat hash'i va formula e'lon qilinadi — har kim tekshira oladi,
-   `seed` oldindan qulflangani uchun natijani keyin o'zgartirib bo'lmaydi.
+- Random — serverda (`draw.py`): maxfiy `seed` + qotirilgan ro'yxat hash'i + raqam → `sha256`, eng kichigi birinchi.
+  Jonli sahifa faqat animatsiya; natijani brauzer emas, server aniqlaydi.
+- Seed/hash/formula **e'lon qilinmaydi** (obunachilarga tushunarsiz edi). Ishonch — jonli efir orqali.
+
+### Ochiq ishtirokchilar sahifasi
+
+- `/p/<id>` — login shart emas: ishtirokchilar (faqat ism va raqam, qidiruv), sovrinlar, holat.
+  Chiqib ketganlar ustidan chizilgan, qaysi kanaldan chiqqani yoniga yoziladi.
+  G'oliblar faqat kanalga e'lon qilingandan keyin ko'rinadi. Jonli baraban bu sahifada **ko'rinmaydi**
+  (internet sekinligi sabab turli odamlar turli narsa ko'rib, norozilik bo'lmasligi uchun).
+- Domen (https) ulangach, kanal postida va natija postida «👥 Ishtirokchilar ro'yxati» tugmasi chiqadi.
 
 ## Oqim 2 — Reklama / homiylik muzokarasi (CRM)
 
@@ -85,6 +97,7 @@ Keyin CRM, userbot suhbatlari, kontent tasdig'i ham shu yerga qo'shiladi.
 - Kirish: saytda «Telegram orqali kirish» → botda «✅ Ha, men kiryapman» → 30 kunlik sessiya. Parol yo'q.
   Faqat Owner/Editor ID'lari; karta/telefon/manzil faqat Owner «Ko'rsatish» bosganda ochiladi.
 - To'lov: panelda «To'landi» → chek rasmi/izoh yuklanadi → bot g'olibga yuboradi, shaxsiy ma'lumot o'chadi.
+  To'lovlar sahifasi rozigrishlar bo'yicha guruhlangan (har birida holat va jami pul).
 - Bot o'zi asosan ishtirokchilar uchun (Qatnashish popup, g'olibdan ma'lumot) + egasiga bildirishnomalar.
 - Domen: keyinroq (VPS + domen + Caddy HTTPS). Mini App uchun HTTPS majburiy.
 

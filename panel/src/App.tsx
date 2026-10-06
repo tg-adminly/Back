@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import Giveaways from './pages/Giveaways'
 import GiveawayNew from './pages/GiveawayNew'
 import GiveawayView from './pages/GiveawayView'
+import LiveDraw from './pages/LiveDraw'
+import PublicList from './pages/PublicList'
 import Payouts from './pages/Payouts'
 import Sponsors from './pages/Sponsors'
 
@@ -23,6 +25,16 @@ const SOON = [
 ]
 
 export default function App() {
+  return (
+    <Routes>
+      {/* Ochiq sahifa: ishtirokchilar ro'yxati, login shart emas */}
+      <Route path="/p/:id" element={<PublicList />} />
+      <Route path="*" element={<Private />} />
+    </Routes>
+  )
+}
+
+function Private() {
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => api.get<Me>('/me'),
@@ -35,7 +47,11 @@ export default function App() {
   }
   return (
     <MeContext.Provider value={me.data}>
-      <Shell me={me.data} />
+      <Routes>
+        {/* Jonli o'yin: menyusiz, to'liq ekran (efirda ulashiladi) */}
+        <Route path="/giveaways/:id/live" element={me.data.role === 'owner' ? <LiveDraw /> : <Navigate to="/" replace />} />
+        <Route path="*" element={<Shell me={me.data} />} />
+      </Routes>
     </MeContext.Provider>
   )
 }

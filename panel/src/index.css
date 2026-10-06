@@ -9,6 +9,52 @@
 }
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
+/* Past ekran (yotiq telefon) — jonli o'yin sahifasini ixchamlash uchun */
+@custom-variant short (@media (max-height: 500px));
 
 html { color-scheme: light dark; }
 body { @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100; }
+
+/* --- Jonli o'yin animatsiyalari --- */
+@keyframes slot-tick {
+  from { transform: translateY(-35%); opacity: 0.3; filter: blur(2px); }
+  to { transform: none; opacity: 1; filter: none; }
+}
+@keyframes land {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes pop-in {
+  from { transform: translateX(24px) scale(0.95); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 40px 0 rgb(250 204 21 / 0.25), inset 0 0 0 2px rgb(250 204 21 / 0.6); }
+  50% { box-shadow: 0 0 90px 10px rgb(250 204 21 / 0.45), inset 0 0 0 2px rgb(250 204 21 / 0.9); }
+}
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate3d(var(--drift), 110vh, 0) rotate(var(--spin)); opacity: 0.9; }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes shake {
+  0%, 100% { transform: none; }
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+.anim-slot { animation: slot-tick 90ms ease-out; }
+.anim-land { animation: land 600ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.anim-pop { animation: pop-in 500ms ease-out both; }
+.anim-glow { animation: glow 1.6s ease-in-out infinite; }
+.anim-shake { animation: shake 450ms ease-in-out; }
+.confetti { position: absolute; top: 0; width: 10px; height: 16px; border-radius: 2px; animation: confetti-fall linear forwards; }
+.marquee { animation: marquee linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-slot, .anim-land, .anim-pop, .anim-shake, .marquee { animation: none; }
+  .confetti { display: none; }
+}

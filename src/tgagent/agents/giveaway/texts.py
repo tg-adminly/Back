@@ -130,14 +130,13 @@ def giveaway_post(g: Giveaway, tz: ZoneInfo, sponsor_titles: list[str]) -> str:
     lines += [
         f"{step}. Pastdagi «🎁 Qatnashish» tugmasini bosing",
         "",
-        "🔐 Adolatli random kodi:",
-        f"<code>{g.commit_hash}</code>",
-        "<i>G'oliblar e'lon qilinganda bu kodni hamma tekshira oladi.</i>",
+        "🎥 G'oliblar jonli efirda aniqlanadi!",
     ]
     return "\n".join(lines)
 
 
 BTN_JOIN = "🎁 Qatnashish"
+BTN_PARTICIPANTS = "👥 Ishtirokchilar ro'yxati"
 
 
 def join_button(count: int) -> str:
@@ -150,9 +149,9 @@ NO_ACTIVE = "Faol rozigrish yo'q."
 BTN_FINISH_NOW = "⏹ Hozir yakunlash"
 BTN_CANCEL_GIVEAWAY = "🗑 Bekor qilish"
 BTN_YES = "Ha, tasdiqlayman"
-CONFIRM_FINISH = "Rozigrish #{id} ni hozir yakunlab, g'oliblarni aniqlaymi?"
+CONFIRM_FINISH = "Rozigrish #{id} da qatnashishni hozir yopaymi? G'oliblarni keyin panelda jonli o'yinda aniqlaysiz."
 CONFIRM_CANCEL = "Rozigrish #{id} ni bekor qilaymi? G'olib aniqlanmaydi."
-FINISH_SCHEDULED = "⏳ Rozigrish #{id} yakunlanmoqda, 1 daqiqa ichida natija chiqadi."
+FINISH_SCHEDULED = "⏳ Rozigrish #{id} da qatnashish 1 daqiqa ichida yopiladi. Keyin jonli o'yin uchun havola yuboraman."
 GIVEAWAY_CANCELLED = "🗑 Rozigrish #{id} bekor qilindi."
 NOT_ACTIVE = "Bu rozigrish allaqachon faol emas."
 
@@ -199,7 +198,7 @@ def results_post(
     """winners: (o'rin, user_id, ism, raqam)."""
     lines = ["🏁 <b>Rozigrish yakunlandi!</b>", f"<b>{escape(g.title)}</b>", f"👥 Ishtirokchilar: {total}", ""]
     if winners:
-        lines.append("🏆 <b>G'oliblar:</b>")
+        lines.append("🏆 <b>Jonli efirda aniqlangan g'oliblar:</b>")
         prizes = g.prizes
         lines += [
             f"{_MEDALS.get(place, '🏅')} {user_link(uid, name)} — #{num} — {prize_text(prizes[place - 1])}"
@@ -211,15 +210,6 @@ def results_post(
     if skipped:
         nums = ", ".join(f"#{n}" for n in skipped)
         lines.append(f"\n<i>Obunadan chiqib ketgani uchun o'tkazib yuborildi: {nums}</i>")
-    lines += [
-        "",
-        "🔐 <b>Tekshirish uchun:</b>",
-        f"Seed: <code>{g.seed}</code>",
-        f"sha256(seed) = e'londagi kod <code>{g.commit_hash}</code>",
-        f"Ro'yxat hash: <code>{g.list_hash}</code>",
-        '<i>Har bir raqam uchun sha256("seed:ro\'yxat_hash:raqam") hisoblanadi, eng kichik qiymatlilar g\'olib. '
-        "Ro'yxat fayli ilova qilingan.</i>",
-    ]
     return "\n".join(lines)
 
 
@@ -265,6 +255,33 @@ WINNER_DM_FAILED = (
     "ℹ️ G'olib {link} botni hali ochmagan, shuning uchun unga o'zim yoza olmadim. "
     "U natija postidagi «🎁 Yutuqni olish» tugmasini bosishi kerak — kerak bo'lsa, eslatib qo'ying."
 )
+
+
+def live_ready(g: Giveaway, total: int, excluded: int | None, live_url: str) -> str:
+    """excluded=None — obunani tekshirib bo'lmadi (panelda qayta tekshirish mumkin)."""
+    if excluded is None:
+        check = "⚠️ Obunani tekshirib bo'lmadi — jonli o'yin sahifasida «Obunani tekshirish»ni bosing.\n\n"
+    elif excluded:
+        check = f"🔄 Obuna qayta tekshirildi: {excluded} kishi homiy kanaldan chiqib ketgan — o'yinda qatnashmaydi.\n\n"
+    else:
+        check = "🔄 Obuna qayta tekshirildi: hamma shartni bajargan ✅\n\n"
+    return (
+        f"⏹ Rozigrish #{g.id} «{escape(g.title)}» da qatnashish yopildi. Ishtirokchilar: {total}.\n"
+        f"{check}"
+        f"🎥 Jonli o'yinni boshlash (efirda ekranni ulashing):\n{live_url}"
+    )
+
+
+# Jonli o'yin (panel) xatolari
+NOT_DRAWING = "Bu rozigrish jonli o'yin bosqichida emas."
+ALL_PLACES_FILLED = "Hamma o'rinlar to'ldi — natijani guruhga e'lon qiling."
+NO_MORE_CANDIDATES = "Boshqa nomzod qolmadi — natijani guruhga e'lon qiling."
+DRAW_NOT_DONE = "Hali hamma o'rinlar aniqlanmadi."
+BOT_NOT_ADMIN_IN = "Bot «{title}» kanalida admin emas — obunani tekshira olmayman. Botni admin qiling va qayta urining."
+ANNOUNCE_FAILED = "Natijani kanalga yuborib bo'lmadi: {error}"
+CHECK_RUNNING = "Obuna tekshirilmoqda — tugashini kuting."
+CHECK_FAILED = "Obunani tekshirishda xato bo'ldi — qayta urinib ko'ring."
+CHECK_TOO_LATE = "O'yin boshlangan — ro'yxatni endi yangilab bo'lmaydi."
 
 
 def draw_summary(g: Giveaway, total: int, winners_count: int) -> str:

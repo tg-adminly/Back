@@ -18,15 +18,15 @@
     "semantic_hash": "ec894ef2f01b779f37e2243d9fdc53ab"
   },
   "panel/src/App.tsx": {
-    "mtime": 1790741761.8494294,
-    "seen": 1791090979.317249,
-    "ast_hash": "7beb2d93b93fbb20934d9c927d97f8ad",
-    "semantic_hash": "7beb2d93b93fbb20934d9c927d97f8ad"
+    "mtime": 1791304227.293976,
+    "seen": 1791304418.1030788,
+    "ast_hash": "e28859510426dc7651fcac45de05dc15",
+    "semantic_hash": ""
   },
   "panel/src/api.ts": {
-    "mtime": 1791229088.8048859,
-    "seen": 1791229111.872742,
-    "ast_hash": "dcc28486f6e2139fb15dc7db8b369615",
+    "mtime": 1791304237.9128568,
+    "seen": 1791304418.10308,
+    "ast_hash": "a29c3b67eb3b3f12a0b1b009fb2582f6",
     "semantic_hash": ""
   },
   "panel/src/main.tsx": {
@@ -48,10 +48,10 @@
     "semantic_hash": ""
   },
   "panel/src/pages/GiveawayView.tsx": {
-    "mtime": 1790742070.0967386,
-    "seen": 1791090979.3172522,
-    "ast_hash": "b3e764ed98c811e34efe48e997c5b150",
-    "semantic_hash": "b3e764ed98c811e34efe48e997c5b150"
+    "mtime": 1791304227.2946913,
+    "seen": 1791304418.103084,
+    "ast_hash": "4bf6d71394bd00db86875352f7c7baff",
+    "semantic_hash": ""
   },
   "panel/src/pages/Giveaways.tsx": {
     "mtime": 1790741794.7626352,
@@ -66,10 +66,10 @@
     "semantic_hash": "9040c6d641e8a3707205e6533c2c3806"
   },
   "panel/src/pages/Payouts.tsx": {
-    "mtime": 1790742070.0970411,
-    "seen": 1791090979.317256,
-    "ast_hash": "0fe995ab699a4242955e33894e399755",
-    "semantic_hash": "0fe995ab699a4242955e33894e399755"
+    "mtime": 1791304298.3191566,
+    "seen": 1791304418.1030872,
+    "ast_hash": "00ab45633415992a6b3127e258174762",
+    "semantic_hash": ""
   },
   "panel/src/pages/Sponsors.tsx": {
     "mtime": 1791229443.2574656,
@@ -78,10 +78,10 @@
     "semantic_hash": ""
   },
   "panel/src/ui.tsx": {
-    "mtime": 1790742070.0963917,
-    "seen": 1791090979.317257,
-    "ast_hash": "7dca6661250a92ae035ddb27bbf0025a",
-    "semantic_hash": "7dca6661250a92ae035ddb27bbf0025a"
+    "mtime": 1791304227.2949998,
+    "seen": 1791304418.1030982,
+    "ast_hash": "6a7241677f3fdea0af7286f993bfdc76",
+    "semantic_hash": ""
   },
   "panel/tsconfig.app.json": {
     "mtime": 1790741637.1818576,
@@ -120,8 +120,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "src/tgagent/__main__.py": {
-    "mtime": 1791229057.7030647,
-    "seen": 1791229111.872755,
+    "mtime": 1791304104.2914686,
+    "seen": 1791304418.103103,
     "ast_hash": "0085c15877c10e09e253ab4d60a7408b",
     "semantic_hash": ""
   },
@@ -138,16 +138,16 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "src/tgagent/agents/giveaway/actions.py": {
-    "mtime": 1790741396.7629004,
-    "seen": 1791090979.3172648,
-    "ast_hash": "cf2b33ec0c9bb645c0e3d4dde023c3b9",
-    "semantic_hash": "cf2b33ec0c9bb645c0e3d4dde023c3b9"
+    "mtime": 1791304227.2953188,
+    "seen": 1791304418.103105,
+    "ast_hash": "3a8a0c973ccb0055bfef0049c260ad5b",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/draw.py": {
-    "mtime": 1790620401.082594,
-    "seen": 1791090979.317266,
-    "ast_hash": "dde9bd2cc81bb58405efe3640e305942",
-    "semantic_hash": "dde9bd2cc81bb58405efe3640e305942"
+    "mtime": 1791304227.295499,
+    "seen": 1791304418.103106,
+    "ast_hash": "a195dd8b5403a2a7dc0b9570f98fffeb",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/handlers/__init__.py": {
     "mtime": 1790620345.5309021,
@@ -156,10 +156,10 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "src/tgagent/agents/giveaway/handlers/admin.py": {
-    "mtime": 1790741416.7713788,
-    "seen": 1791090979.317267,
-    "ast_hash": "203401a7400162dd616a0c3670d2d31b",
-    "semantic_hash": "203401a7400162dd616a0c3670d2d31b"
+    "mtime": 1791304227.2958388,
+    "seen": 1791304418.103107,
+    "ast_hash": "7fc1bb9ac9bd4e7555c3ff54ab8dbc6b",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/handlers/editor.py": {
     "mtime": 1790620716.3811474,
@@ -168,40 +168,40 @@
     "semantic_hash": "af29f287b7688afc9ac0abd6b3dc79fd"
   },
   "src/tgagent/agents/giveaway/handlers/participant.py": {
-    "mtime": 1790738127.9512897,
-    "seen": 1791090979.317269,
-    "ast_hash": "21df9aad5615456af913d49fe2877b15",
-    "semantic_hash": "21df9aad5615456af913d49fe2877b15"
+    "mtime": 1791304227.2961657,
+    "seen": 1791304418.1031091,
+    "ast_hash": "0c9c351c3c10d49b3ddc17e866a4f360",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/jobs.py": {
-    "mtime": 1790705610.2120752,
-    "seen": 1791090979.31727,
-    "ast_hash": "c2df8a35b5822ad7445312f4c43b39b8",
-    "semantic_hash": "c2df8a35b5822ad7445312f4c43b39b8"
+    "mtime": 1791304227.2964973,
+    "seen": 1791304418.1031098,
+    "ast_hash": "bfb201e77f1b77a0e47a58b5bd5f0cf2",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/keyboards.py": {
-    "mtime": 1790705573.5419972,
-    "seen": 1791090979.317271,
-    "ast_hash": "cee6f52f2d56c840e0e5f10fdc1841df",
-    "semantic_hash": "cee6f52f2d56c840e0e5f10fdc1841df"
+    "mtime": 1791304227.2966912,
+    "seen": 1791304418.103111,
+    "ast_hash": "3158f3f7ec296a44ec499d00d5a17293",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/models.py": {
-    "mtime": 1790705521.2289798,
-    "seen": 1791090979.317271,
-    "ast_hash": "af0249a92654fb5a839f6798fec43dc2",
-    "semantic_hash": "af0249a92654fb5a839f6798fec43dc2"
+    "mtime": 1791304227.2970126,
+    "seen": 1791304418.103112,
+    "ast_hash": "24a0340ae0d8a8f829f733ad99219e80",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/service.py": {
-    "mtime": 1790741416.7408788,
-    "seen": 1791090979.317272,
-    "ast_hash": "3ef1f815cba950000bb5568e8f330002",
-    "semantic_hash": "3ef1f815cba950000bb5568e8f330002"
+    "mtime": 1791304227.2975717,
+    "seen": 1791304418.103112,
+    "ast_hash": "15947e07422f9aede6b451cd59af0b0b",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/texts.py": {
-    "mtime": 1790737753.4026284,
-    "seen": 1791090979.317272,
-    "ast_hash": "70953326f66a1c343148199ef1fb281f",
-    "semantic_hash": "70953326f66a1c343148199ef1fb281f"
+    "mtime": 1791304227.2979019,
+    "seen": 1791304418.103113,
+    "ast_hash": "1ccdc1b462497b6ec6bd69f465f5988f",
+    "semantic_hash": ""
   },
   "src/tgagent/agents/giveaway/validators.py": {
     "mtime": 1790705562.010669,
@@ -264,9 +264,9 @@
     "semantic_hash": "b254b22bc8273172bc3fd3aca0aa5e9f"
   },
   "src/tgagent/panel/api.py": {
-    "mtime": 1791229068.7591255,
-    "seen": 1791229111.872774,
-    "ast_hash": "944d567f3e79b1d7da288d795cbf8e3a",
+    "mtime": 1791304227.2981038,
+    "seen": 1791304418.103123,
+    "ast_hash": "ce667ee38a5a12979c08ec770fd5628c",
     "semantic_hash": ""
   },
   "src/tgagent/panel/auth.py": {
@@ -306,9 +306,9 @@
     "semantic_hash": "b6286d891b695f8c898bacddbd1a1477"
   },
   "tests/test_panel.py": {
-    "mtime": 1791229098.690301,
-    "seen": 1791229111.87278,
-    "ast_hash": "74871aa4f33ae533b46f265f357de802",
+    "mtime": 1791304227.2984269,
+    "seen": 1791304418.103128,
+    "ast_hash": "7ca8f7b24b5aec0f906a1b156cd073fb",
     "semantic_hash": ""
   },
   "tests/test_service.py": {
@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   "SPEC.md": {
-    "mtime": 1791229110.465586,
-    "seen": 1791229111.872784,
-    "ast_hash": "7e2cc9f35809bc4b0107b2728079ff4f",
+    "mtime": 1791304413.8432624,
+    "seen": 1791304418.1031308,
+    "ast_hash": "d1801b11a176a93490b590e1296c94dd",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -369,6 +369,18 @@
     "mtime": 1791229057.6791003,
     "seen": 1791229111.87277,
     "ast_hash": "9e42a760dc525f3afd6df82f90e8d8fd",
+    "semantic_hash": ""
+  },
+  "panel/src/pages/LiveDraw.tsx": {
+    "mtime": 1791304263.7106893,
+    "seen": 1791304418.103085,
+    "ast_hash": "f6bef233176350fd0b0914417450a13c",
+    "semantic_hash": ""
+  },
+  "panel/src/pages/PublicList.tsx": {
+    "mtime": 1791304276.2551067,
+    "seen": 1791304418.1030881,
+    "ast_hash": "aeb776ba710a05490f17a0df074e73e7",
     "semantic_hash": ""
   }
 }

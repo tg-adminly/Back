@@ -55,18 +55,32 @@ def publish_confirm() -> InlineKeyboardMarkup:
     return b.as_markup()
 
 
-def giveaway_post(sponsors: list[ChatRef], giveaway_id: int, count: int = 0) -> InlineKeyboardMarkup:
+def participants_url(panel_url: str, giveaway_id: int) -> str | None:
+    """Ochiq ishtirokchilar sahifasi. Telegram tugmasi faqat haqiqiy domen (https) bilan ishlaydi."""
+    if not panel_url.startswith("https://"):
+        return None
+    return f"{panel_url.rstrip('/')}/p/{giveaway_id}"
+
+
+def giveaway_post(
+    sponsors: list[ChatRef], giveaway_id: int, count: int = 0, list_url: str | None = None
+) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     for s in sponsors:
         b.button(text=f"➕ {s.title}", url=s.link)
     b.button(text=texts.join_button(count), callback_data=JoinCB(giveaway_id=giveaway_id))
+    if list_url:
+        b.button(text=texts.BTN_PARTICIPANTS, url=list_url)
     b.adjust(1)
     return b.as_markup()
 
 
-def claim(url: str) -> InlineKeyboardMarkup:
+def claim(url: str, list_url: str | None = None) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(text=texts.BTN_CLAIM, url=url)
+    if list_url:
+        b.button(text=texts.BTN_PARTICIPANTS, url=list_url)
+    b.adjust(1)
     return b.as_markup()
 
 

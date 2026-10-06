@@ -41,15 +41,56 @@ export default function Payouts() {
       {list.isPending ? (
         <Loading />
       ) : list.data?.length ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {list.data.map((w) => (
-            <PayoutCard key={w.id} w={w} />
+        <div className="space-y-8">
+          {byGiveaway(list.data).map((group) => (
+            <GiveawayGroup key={group[0].giveaway_id} winners={group} open={tab === 'open'} />
           ))}
         </div>
       ) : (
         <Empty>{tab === 'open' ? "Ochiq to'lov yo'q ✅" : "Hali hech narsa topshirilmagan."}</Empty>
       )}
     </>
+  )
+}
+
+/** Rozigrishlar bo'yicha guruhlaydi: yangisi tepada, ichida o'rin tartibida */
+function byGiveaway(winners: Winner[]): Winner[][] {
+  const groups = new Map<number, Winner[]>()
+  for (const w of winners) groups.set(w.giveaway_id, [...(groups.get(w.giveaway_id) ?? []), w])
+  return [...groups.values()].sort((a, b) => b[0].giveaway_id - a[0].giveaway_id).map((g) => g.sort((a, b) => a.place - b.place))
+}
+
+const sum = (n: number) => `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} so'm`
+
+function GiveawayGroup({ winners, open }: { winners: Winner[]; open: boolean }) {
+  const first = winners[0]
+  const waiting = winners.filter((w) => w.status === 'awaiting_info').length
+  const ready = winners.filter((w) => w.status === 'info_received').length
+  const money = winners.reduce((acc, w) => acc + (w.prize.type === 'money' ? (w.prize.amount ?? 0) : 0), 0)
+  return (
+    <section>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-zinc-200 pb-2 dark:border-zinc-800">
+        <Link to={`/giveaways/${first.giveaway_id}`} className="min-w-0 truncate text-lg font-semibold hover:text-brand-600">
+          🎁 {first.giveaway_title} <span className="text-sm font-normal text-zinc-400">#{first.giveaway_id}</span>
+        </Link>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-500">
+          {open ? (
+            <>
+              {ready > 0 && <span className="text-brand-600">💳 {ready} ta to'lashga tayyor</span>}
+              {waiting > 0 && <span>⏳ {waiting} ta ma'lumot kutilmoqda</span>}
+            </>
+          ) : (
+            <span>✅ {winners.length} ta topshirilgan</span>
+          )}
+          {money > 0 && <span>💵 jami {sum(money)}</span>}
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {winners.map((w) => (
+          <PayoutCard key={w.id} w={w} />
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -67,9 +108,9 @@ function PayoutCard({ w }: { w: Winner }) {
     <Card>
       <div className="mb-2 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <Link to={`/giveaways/${w.giveaway_id}`} className="block truncate text-xs text-zinc-500 hover:text-brand-600">
-            «{w.giveaway_title}» · {w.place}-o'rin
-          </Link>
+          <div className="text-xs text-zinc-500">
+            {w.place}-o'rin · #{w.number}
+          </div>
           <div className="truncate font-medium">
             <a href={`tg://user?id=${w.user_id}`} className="hover:text-brand-600">
               {userLabel(w.name, w.username)}

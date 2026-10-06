@@ -81,9 +81,6 @@ export interface Giveaway {
   created_at: string
   sponsors: Sponsor[]
   post_url: string | null
-  commit_hash: string
-  seed: string | null
-  list_hash: string | null
 }
 
 export type WinnerStatus = 'awaiting_info' | 'info_received' | 'done'
@@ -128,4 +125,37 @@ export interface PayoutDetails {
   full_name?: string
   phone?: string
   address?: string
+}
+
+// --- Jonli o'yin ---
+
+export interface LivePick {
+  number: number
+  name: string
+  place: number | null // null — kanaldan chiqib ketgani uchun o'tkazib yuborilgan
+  missing: string[] // obuna bo'lmagan kanallar
+}
+
+export interface LiveState extends Giveaway {
+  names: { number: number; name: string }[]
+  picks: LivePick[]
+  excluded: { number: number; name: string; missing: string[] }[] // o'yindan oldingi tekshiruvda chiqib ketganlar
+  check: { total: number; done: number } | null // obuna tekshiruvi ketyapti
+  check_error: string | null
+  exhausted: boolean
+}
+
+// --- Ochiq sahifa (login shart emas) ---
+
+export interface PublicGiveaway {
+  id: number
+  title: string
+  status: GiveawayStatus
+  prizes: Prize[]
+  ends_at: string
+  timezone: string
+  channel: { title: string; link: string }
+  post_url: string | null
+  participants: { number: number; name: string; missing: string[] }[]
+  winners: { place: number; number: number; name: string; prize: Prize }[]
 }

@@ -25,8 +25,8 @@ export default function GiveawayView() {
   const g = useQuery({
     queryKey: ['giveaway', id],
     queryFn: () => api.get<GiveawayDetail>(`/giveaways/${id}`),
-    // Yakunlanayotganda natijani kutib turamiz
-    refetchInterval: (q) => (q.state.data?.status === 'active' || q.state.data?.status === 'drawing' ? 10_000 : false),
+    // Qatnashish yopilishini kutib turamiz
+    refetchInterval: (q) => (q.state.data?.status === 'active' ? 10_000 : false),
   })
   const action = useMutation({
     mutationFn: (what: 'finish' | 'cancel') => api.post(`/giveaways/${id}/${what}`),
@@ -40,6 +40,7 @@ export default function GiveawayView() {
   if (g.isPending) return <Loading />
   if (g.error) return <ErrorBox error={g.error} />
   const d = g.data
+  const publicUrl = `${window.location.origin}/p/${d.id}`
 
   return (
     <>
@@ -57,6 +58,11 @@ export default function GiveawayView() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {(d.status === 'drawing' || d.status === 'finished') && d.participants > 0 && (
+            <Link to={`/giveaways/${d.id}/live`}>
+              <Button variant={d.status === 'drawing' ? 'primary' : 'secondary'}>🎥 Jonli o'yin</Button>
+            </Link>
+          )}
           {d.post_url && (
             <a href={d.post_url} target="_blank" rel="noopener">
               <Button variant="secondary">Postni ochish ↗</Button>
@@ -64,8 +70,8 @@ export default function GiveawayView() {
           )}
           {d.status === 'active' && (
             <>
-              <ConfirmButton question="Rozigrishni hozir yakunlab, g'oliblarni aniqlaymi? Natija 1 daqiqa ichida kanalga chiqadi." onConfirm={() => action.mutate('finish')} pending={action.isPending}>
-                ⏹ Hozir yakunlash
+              <ConfirmButton question="Qatnashishni hozir yopaymi? 1 daqiqa ichida yopiladi, keyin g'oliblarni jonli o'yinda aniqlaysiz." onConfirm={() => action.mutate('finish')} pending={action.isPending}>
+                ⏹ Qatnashishni yopish
               </ConfirmButton>
               <ConfirmButton variant="danger" question="Rozigrishni bekor qilaymi? G'olib aniqlanmaydi." onConfirm={() => action.mutate('cancel')} pending={action.isPending}>
                 Bekor qilish
@@ -145,33 +151,23 @@ export default function GiveawayView() {
             )}
           </Card>
           <Card>
-            <h2 className="mb-2 font-semibold">🔐 Adolatli random</h2>
-            <Hash label="E'londagi kod (sha256(seed))" value={d.commit_hash} />
-            {d.seed ? (
-              <>
-                <Hash label="Seed" value={d.seed} />
-                <Hash label="Ro'yxat hash" value={d.list_hash ?? ''} />
-              </>
-            ) : (
-              <p className="text-xs text-zinc-500">Seed rozigrish yakunlanganda ochiladi — undan oldin hech kim (siz ham) natijani bilmaydi.</p>
-            )}
+            <h2 className="mb-2 font-semibold">👥 Ochiq ro'yxat</h2>
+            <p className="mb-2 text-xs text-zinc-500">
+              Hamma ko'ra oladigan sahifa: ishtirokchilar (ism va raqam), yakunlangach — g'oliblar. Domen ulangach, kanal postida tugma bo'lib chiqadi.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded bg-zinc-100 px-2 py-1 text-xs dark:bg-zinc-800">{publicUrl}</code>
+              <CopyButton value={publicUrl} />
+              <a href={publicUrl} target="_blank" rel="noopener" className="text-xs text-brand-600 hover:underline">
+                Ochish ↗
+              </a>
+            </div>
           </Card>
         </div>
       </div>
 
       <Participants giveawayId={d.id} total={d.participants} />
     </>
-  )
-}
-
-function Hash({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mb-2">
-      <div className="flex items-center justify-between text-xs text-zinc-500">
-        {label} <CopyButton value={value} />
-      </div>
-      <code className="block rounded bg-zinc-100 px-2 py-1 text-[11px] break-all dark:bg-zinc-800">{value}</code>
-    </div>
   )
 }
 

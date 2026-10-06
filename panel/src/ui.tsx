@@ -108,7 +108,7 @@ export function Empty({ children }: { children: ReactNode }) {
 
 const GIVEAWAY_STATUS: Record<GiveawayStatus, [string, string]> = {
   active: ['Faol', 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'],
-  drawing: ["G'olib aniqlanmoqda", 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'],
+  drawing: ["Jonli o'yin kutilmoqda", 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'],
   finished: ['Yakunlangan', 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'],
   cancelled: ['Bekor qilingan', 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'],
 }

@@ -2,19 +2,21 @@
 
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tgagent.agents.giveaway import draw
 from tgagent.agents.giveaway.models import (
     ClaimStep,
+    DrawPick,
     Giveaway,
     GiveawayStatus,
     Participant,
     Prize,
     PrizeType,
     SponsorChannel,
+    SubscriptionMiss,
     Winner,
     WinnerStatus,
 )
@@ -124,7 +126,7 @@ async def due_giveaway_ids(session: AsyncSession, now: datetime | None = None) -
         (
             await session.scalars(
                 select(Giveaway.id).where(
-                    Giveaway.status.in_([GiveawayStatus.ACTIVE, GiveawayStatus.DRAWING]),
+                    Giveaway.status == GiveawayStatus.ACTIVE,
                     Giveaway.ends_at <= now,
                 )
             )
@@ -167,7 +169,7 @@ def mark_done(winner: Winner) -> None:
 
 
 async def finish_now(session: AsyncSession, giveaway_id: int) -> bool:
-    """Faol rozigrishni hozir yakunlashga qo'yadi (draw_loop 30 soniyada ushlaydi)."""
+    """Faol rozigrishda qatnashishni hozir yopishga qo'yadi (draw_loop 30 soniyada ushlaydi)."""
     g = await session.get(Giveaway, giveaway_id)
     if g is None or g.status != GiveawayStatus.ACTIVE:
         return False
@@ -205,3 +207,37 @@ async def list_winners(session: AsyncSession, giveaway_id: int) -> list[Winner]:
 
 async def list_sponsors(session: AsyncSession) -> list[SponsorChannel]:
     return list((await session.scalars(select(SponsorChannel).order_by(SponsorChannel.title))).all())
+
+
+# --- Jonli o'yin ---
+
+
+async def list_picks(session: AsyncSession, giveaway_id: int) -> list[DrawPick]:
+    return list(
+        (await session.scalars(select(DrawPick).where(DrawPick.giveaway_id == giveaway_id).order_by(DrawPick.id))).all()
+    )
+
+
+async def subscription_misses(session: AsyncSession, giveaway_id: int) -> dict[int, list[str]]:
+    """participant_id -> obuna bo'lmagan kanallar nomi."""
+    rows = await session.scalars(select(SubscriptionMiss).where(SubscriptionMiss.giveaway_id == giveaway_id))
+    return {m.participant_id: m.chats for m in rows}
+
+
+async def save_misses(session: AsyncSession, giveaway_id: int, misses: dict[int, list[str]]) -> None:
+    """Tekshiruv natijasi bilan almashtiradi (qayta obuna bo'lganlar ro'yxatdan chiqadi)."""
+    await session.execute(delete(SubscriptionMiss).where(SubscriptionMiss.giveaway_id == giveaway_id))
+    session.add_all(SubscriptionMiss(participant_id=pid, giveaway_id=giveaway_id, chats=chats) for pid, chats in misses.items())
+
+
+async def next_candidate(session: AsyncSession, g: Giveaway, picks: list[DrawPick]) -> Participant | None:
+    """Random tartibida hali chiqmagan birinchi ishtirokchi (draw.rank — qotirilgan ro'yxat bo'yicha).
+
+    Oldindan tekshiruvda obunasi yo'q chiqqanlar o'tkaziladi.
+    """
+    picked = {p.participant_id for p in picks} | (await subscription_misses(session, g.id)).keys()
+    by_number = {p.number: p for p in await list_participants(session, g.id)}
+    for number in draw.rank(g.seed, g.list_hash or "", by_number):
+        if by_number[number].id not in picked:
+            return by_number[number]
+    return None

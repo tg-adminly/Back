@@ -271,5 +271,4 @@ def _draft_giveaway(data: dict) -> Giveaway:
         description=data["description"],
         prizes_data=data["prizes"],
         ends_at=datetime.fromisoformat(data["ends_at"]),
-        commit_hash="…",
     )

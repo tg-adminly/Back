@@ -1,10 +1,10 @@
-"""Tekshirsa bo'ladigan random g'olib tanlash. LLM yo'q, faqat sha256.
+"""G'olib tanlash random'i. LLM yo'q, faqat sha256.
 
-1. E'londa `commit_of(seed)` chop etiladi — seed shu lahzadan qulflangan.
-2. Yakunda ishtirokchilar ro'yxati qotiriladi: `participants_hash(entries)`.
+1. Rozigrish yaratilganda maxfiy `seed` yaratiladi (hech qayerda chop etilmaydi).
+2. Qatnashish yopilganda ishtirokchilar ro'yxati qotiriladi: `participants_hash(entries)`.
 3. Har bir raqam uchun sha256("seed:list_hash:raqam") hisoblanadi; eng kichik
-   qiymatlar birinchi. Obunadan chiqqanlar o'tkazib yuboriladi.
-4. Natijada seed, list_hash va ro'yxat fayli e'lon qilinadi — har kim qayta hisoblay oladi.
+   qiymatlar birinchi. Jonli o'yinda shu tartibda bittadan chiqariladi,
+   obunadan chiqqanlar o'tkazib yuboriladi.
 """
 
 import hashlib

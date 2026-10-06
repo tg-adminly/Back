@@ -1,7 +1,10 @@
 """Panel JSON API. Hamma yo'llar /api ostida, faqat Owner/Editor sessiyasi bilan."""
 
+import asyncio
 import html
+import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
@@ -13,8 +16,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from tgagent.agents.giveaway import actions, service, texts
+from tgagent.agents.giveaway import actions, jobs, service, texts
 from tgagent.agents.giveaway.models import (
+    DrawPick,
     Giveaway,
     GiveawayStatus,
     Participant,
@@ -33,6 +37,8 @@ from tgagent.core.crypto import Vault
 from tgagent.core.db import utcnow
 from tgagent.panel import auth
 from tgagent.panel import texts as ptexts
+
+log = logging.getLogger(__name__)
 
 MAX_PROOF_BYTES = 10 * 1024 * 1024
 _TAG = re.compile(r"<[^>]+>")
@@ -147,7 +153,6 @@ def post_url(d: Deps, g: Giveaway) -> str | None:
 
 
 def giveaway_out(d: Deps, g: Giveaway, participants: int) -> dict:
-    finished = g.status == GiveawayStatus.FINISHED
     return {
         "id": g.id,
         "title": g.title,
@@ -160,10 +165,6 @@ def giveaway_out(d: Deps, g: Giveaway, participants: int) -> dict:
         "created_at": g.created_at.isoformat(),
         "sponsors": [sponsor_out(s) for s in g.sponsors],
         "post_url": post_url(d, g),
-        "commit_hash": g.commit_hash,
-        # seed faqat natija e'lon qilingach ochiladi (commit-reveal)
-        "seed": g.seed if finished else None,
-        "list_hash": g.list_hash if finished else None,
     }
 
 
@@ -266,7 +267,6 @@ async def giveaway_preview(body: GiveawayIn, d: D, _: Owner):
             description=body.description.strip(),
             prizes_data=[p.to_dict() for p in parsed.prizes],
             ends_at=parsed.ends_at,
-            commit_hash="…",
         )
         html_text = texts.giveaway_post(draft, d.settings.tz, [sp.title for sp in sponsors])
     return {
@@ -355,6 +355,133 @@ async def giveaway_cancel(gid: int, d: D, _: Owner):
         if not await service.cancel_giveaway(s, gid):
             raise HTTPException(400, plain(texts.NOT_ACTIVE))
     return {"ok": True}
+
+
+# --- Jonli o'yin (efirda ekranni ulashib ko'rsatiladi) ---
+
+
+def pick_out(p: DrawPick, misses: dict[int, list[str]]) -> dict:
+    pp = p.participant
+    return {"number": pp.number, "name": pp.full_name, "place": p.place, "missing": misses.get(pp.id, [])}
+
+
+@router.get("/giveaways/{gid}/live")
+async def live_state(gid: int, d: D, _: Owner):
+    async with d.sm() as s:
+        g = await s.get(Giveaway, gid)
+        if g is None:
+            raise HTTPException(404, plain(texts.GIVEAWAY_NOT_FOUND))
+        parts = await service.list_participants(s, gid)
+        picks = await service.list_picks(s, gid)
+        misses = await service.subscription_misses(s, gid)
+        exhausted = g.status == GiveawayStatus.DRAWING and await service.next_candidate(s, g, picks) is None
+    picked = {p.participant_id for p in picks}
+    progress = jobs.checks.get(gid)
+    return {
+        **giveaway_out(d, g, len(parts)),
+        # Oldindan tekshiruvda chiqib ketganlar randomga tushmaydi — barabanda ham ko'rinmaydi
+        "names": [{"number": p.number, "name": p.full_name} for p in parts if p.id not in misses or p.id in picked],
+        "picks": [pick_out(p, misses) for p in picks],
+        "excluded": [
+            {"number": p.number, "name": p.full_name, "missing": misses[p.id]}
+            for p in parts
+            if p.id in misses and p.id not in picked
+        ],
+        "check": {"total": progress.total, "done": progress.done} if progress else None,
+        "check_error": jobs.check_errors.get(gid),
+        "exhausted": exhausted,
+    }
+
+
+_check_tasks: set[asyncio.Task] = set()
+
+
+@router.post("/giveaways/{gid}/live/check")
+async def live_check(gid: int, d: D, _: Owner):
+    """Obunani qayta tekshirish (fonda). Natijasi /live da: check — jarayon, excluded — chiqib ketganlar."""
+    if gid in jobs.checks:
+        raise HTTPException(400, plain(texts.CHECK_RUNNING))
+    async with d.sm() as s:
+        g = await s.get(Giveaway, gid)
+        if g is None or g.status != GiveawayStatus.DRAWING:
+            raise HTTPException(400, plain(texts.NOT_DRAWING))
+        if await service.list_picks(s, gid):
+            raise HTTPException(400, plain(texts.CHECK_TOO_LATE))
+
+    async def run():
+        try:
+            await jobs.check_subscriptions(d.bot, d.sm, d.main_chat, gid)
+        except jobs.CheckError:
+            pass  # sababi jobs.check_errors da
+        except Exception:
+            log.exception("Rozigrish #%s: obunani tekshirib bo'lmadi", gid)
+        _public_cache.pop(gid, None)
+
+    task = asyncio.create_task(run())
+    _check_tasks.add(task)
+    task.add_done_callback(_check_tasks.discard)
+    await asyncio.sleep(0)  # jobs.checks to'lsin — keyingi /live darhol jarayonni ko'rsatadi
+    return {"ok": True}
+
+
+@router.post("/giveaways/{gid}/live/next")
+async def live_next(gid: int, d: D, _: Owner):
+    try:
+        picks = await actions.reveal_next(d.bot, d.sm, d.main_chat, gid)
+    except actions.ActionError as e:
+        raise HTTPException(400, plain(e.message)) from None
+    async with d.sm() as s:
+        misses = await service.subscription_misses(s, gid)
+    return {"picks": [pick_out(p, misses) for p in picks]}
+
+
+@router.post("/giveaways/{gid}/live/announce")
+async def live_announce(gid: int, d: D, _: Owner):
+    try:
+        await actions.announce_results(d.bot, d.settings, d.sm, gid)
+    except actions.ActionError as e:
+        raise HTTPException(400, plain(e.message)) from None
+    _public_cache.pop(gid, None)
+    return {"ok": True}
+
+
+# --- Ochiq sahifa: ishtirokchilar ro'yxati (login shart emas) ---
+
+PUBLIC_TTL = 5.0
+_public_cache: dict[int, tuple[float, dict]] = {}
+
+
+@router.get("/public/giveaways/{gid}")
+async def public_giveaway(gid: int, d: D):
+    """Faqat ism va raqam — user_id/username chiqmaydi. G'oliblar kanalga e'lon qilingandan keyin ko'rinadi."""
+    hit = _public_cache.get(gid)
+    if hit and time.monotonic() - hit[0] < PUBLIC_TTL:
+        return hit[1]
+    async with d.sm() as s:
+        g = await s.get(Giveaway, gid)
+        if g is None or g.status == GiveawayStatus.CANCELLED:
+            raise HTTPException(404, plain(texts.GIVEAWAY_NOT_FOUND))
+        parts = await service.list_participants(s, gid)
+        misses = await service.subscription_misses(s, gid)
+        winners = await service.list_winners(s, gid) if g.status == GiveawayStatus.FINISHED else []
+    data = {
+        "id": g.id,
+        "title": g.title,
+        "status": g.status,
+        "prizes": [prize_out(p) for p in g.prizes],
+        "ends_at": g.ends_at.isoformat(),
+        "timezone": d.settings.timezone,
+        "channel": {"title": d.main_chat.title, "link": d.main_chat.link},
+        "post_url": post_url(d, g),
+        # missing — qatnashgandan keyin chiqib ketgan kanallar (shart bajarilmagan)
+        "participants": [{"number": p.number, "name": p.full_name, "missing": misses.get(p.id, [])} for p in parts],
+        "winners": [
+            {"place": w.place, "number": w.participant.number, "name": w.participant.full_name, "prize": prize_out(w.prize)}
+            for w in winners
+        ],
+    }
+    _public_cache[gid] = (time.monotonic(), data)
+    return data
 
 
 # --- Homiylar ---
