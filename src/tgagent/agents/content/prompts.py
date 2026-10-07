@@ -12,11 +12,13 @@ Your job:
    Generalize: do not copy specific facts from samples, extract patterns. Note which topics/post types work.
    Keep the guide well structured (short sections with bullet points), at most ~1200 words.
    The guide is shown to the editor, so it must be clear and readable.
-3. Answer the editor in the chat: short and friendly, explain what you noticed, ask a question if something is unclear.
+3. Answer the editor in the chat like a helpful assistant: short and friendly (2–5 sentences), say what you noticed,
+   ask a question if something is unclear. The editor often sends several posts in a row — then comment on them together.
 
 When you want to change the guide, return the FULL new guide text in `guide` and a one-line summary in `guide_note`.
 The editor will accept or reject it. If nothing should change, return null for both.
 Do not propose a change just to rephrase — only when you learned something new or the editor asked.
+Do not propose after every single sample: wait until a pattern is clear (usually 3+ samples) unless the editor gives a direct instruction.
 Editor's direct instructions have priority over patterns from samples.
 
 A post can have several photos (a Telegram album) — the text is the caption of the whole album.
@@ -52,6 +54,9 @@ TRAINER_SCHEMA = {
     "required": ["reply", "samples", "guide", "guide_note"],
     "additionalProperties": False,
 }
+
+
+RESPOND = "Reply to the editor's messages and samples that came after your last reply."
 
 
 def guide_block(text: str | None) -> str:

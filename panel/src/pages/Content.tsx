@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ClipboardEvent } from 'react'
+import { useEffect, useRef, useState, type ClipboardEvent, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { api, type AiUsage, type GuideVersion, type Sample, type TrainMessage } from '../api'
@@ -55,97 +55,145 @@ function UsageChip() {
   )
 }
 
-// --- O'qitish chati ---
+// --- O'qitish chati (chatbot ko'rinishida) ---
+
+type ChatState = { messages: TrainMessage[]; thinking: boolean; error: string | null }
 
 function TrainChat() {
   const qc = useQueryClient()
   const chat = useQuery({
     queryKey: ['train-chat'],
-    queryFn: () => api.get<{ messages: TrainMessage[]; pending_samples: number }>('/content/chat'),
+    queryFn: () => api.get<ChatState>('/content/chat'),
+    // Agent fonda yozadi — javob kelguncha tez-tez so'raymiz
+    refetchInterval: (q) => (q.state.data?.thinking ? 1500 : false),
   })
-  const send = useMutation({
-    mutationFn: (text: string) => api.post<TrainMessage>('/content/chat/message', { text }),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['train-chat'] })
-      qc.invalidateQueries({ queryKey: ['ai-usage'] })
-    },
+  const retry = useMutation({
+    mutationFn: () => api.post('/content/chat/retry'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['train-chat'] }),
   })
-  const bottom = useRef<HTMLDivElement>(null)
+  const thinking = chat.data?.thinking ?? false
+  useEffect(() => {
+    if (!thinking) qc.invalidateQueries({ queryKey: ['ai-usage'] })
+  }, [thinking, qc])
+
+  // Yangi xabar kelganda pastga: sahifa oxirida yozish maydoni o'z joyida turadi, xabarni to'smaydi
   const count = chat.data?.messages.length ?? 0
   useEffect(() => {
-    if (count) bottom.current?.scrollIntoView({ block: 'end' })
-  }, [count, send.isPending])
+    if (count || thinking) requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight }))
+  }, [count, thinking])
 
   if (chat.isPending) return <Loading />
-  const { messages, pending_samples } = chat.data ?? { messages: [], pending_samples: 0 }
+  const { messages, error } = chat.data ?? { messages: [], thinking: false, error: null }
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-[calc(100vh-14rem)] flex-col">
       <ErrorBox error={chat.error} />
-      {messages.length === 0 && (
-        <Card className="text-sm text-zinc-600 dark:text-zinc-300">
-          <p className="mb-2 font-medium">Agentni shu yerda o'qitamiz 👋</p>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>«📎 Namuna post» orqali yoqqan postlarni (rasmi va matni bilan) qo'shing — 10–20 ta yetadi.</li>
-            <li>«🔍 Tahlil qilish» ni bosing: agent postlarni o'rganib, o'zi uchun uslub qoidalarini taklif qiladi.</li>
-            <li>Taklifni ko'rib, qabul qiling yoki tuzating. Xohlagan payt yozib ko'rsatma bering: «emoji kamroq», «savol bilan tugat»…</li>
-          </ol>
-        </Card>
-      )}
-      {messages.map((m) => (
-        <MessageRow key={m.id} m={m} />
-      ))}
-      {send.isPending && (
-        <div className="flex">
-          <div className="animate-pulse rounded-2xl rounded-bl-sm bg-white px-4 py-2 text-sm text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
-            🤖 AI o'ylayapti… (30 soniyagacha)
-          </div>
-        </div>
-      )}
-      <ErrorBox error={send.error} />
-      {pending_samples > 0 && !send.isPending && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-4 py-3 text-sm dark:bg-brand-700/20">
-          <span>📎 {pending_samples} ta yangi namuna tahlil kutmoqda</span>
-          <Button onClick={() => send.mutate('')}>🔍 Tahlil qilish</Button>
-        </div>
-      )}
-      <Composer sending={send.isPending} onSend={(t) => send.mutateAsync(t)} />
-      <div ref={bottom} />
+      <div className="flex-1 space-y-4 pb-4">
+        <AiBubble>
+          <p className="mb-2">Salom! Men kanal uchun post yozishni o'rganyapman 👋</p>
+          <ul className="list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-300">
+            <li>📎 bilan yoqqan postlarni rasmlari va matni bilan yuboring — 10–20 ta yetadi.</li>
+            <li>Men ularni o'rganib, o'zim uchun uslub qoidalarini taklif qilaman — siz qabul qilasiz yoki tuzatasiz.</li>
+            <li>Istalgan payt ko'rsatma bering: «emoji kamroq», «savol bilan tugat»…</li>
+          </ul>
+        </AiBubble>
+        {messages.map((m) => (
+          <MessageRow key={m.id} m={m} />
+        ))}
+        {thinking && (
+          <AiBubble>
+            <span className="inline-flex gap-1 py-1" aria-label="AI yozmoqda">
+              {[0, 150, 300].map((d) => (
+                <span key={d} className="h-2 w-2 animate-bounce rounded-full bg-zinc-400" style={{ animationDelay: `${d}ms` }} />
+              ))}
+            </span>
+          </AiBubble>
+        )}
+        {error && !thinking && (
+          <AiBubble>
+            <p className="mb-2 text-red-600 dark:text-red-400">⚠️ {error}</p>
+            <Button variant="secondary" onClick={() => retry.mutate()} disabled={retry.isPending}>
+              🔄 Qayta urinish
+            </Button>
+          </AiBubble>
+        )}
+      </div>
+      <Composer />
+    </div>
+  )
+}
+
+function AiBubble({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  return (
+    <div className="flex items-end gap-2">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base dark:bg-brand-700/30">🤖</div>
+      <div className="max-w-[85%] sm:max-w-xl">
+        <div className="rounded-2xl rounded-bl-sm bg-white px-4 py-2.5 text-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">{children}</div>
+        {footer}
+      </div>
     </div>
   )
 }
 
 function MessageRow({ m }: { m: TrainMessage }) {
   const me = useMe()
-  const mine = m.role === 'user'
   const time = formatDate(m.created_at, me.timezone).split(' ')[1]
+  if (m.role === 'assistant') {
+    return (
+      <AiBubble footer={<div className="mt-1 text-xs text-zinc-400">{time}</div>}>
+        <div className="whitespace-pre-wrap">{m.text}</div>
+        {m.proposal && <ProposalBox m={m} />}
+      </AiBubble>
+    )
+  }
+  const meta = (
+    <div className="mt-1 text-right text-xs text-zinc-400">
+      {m.author} · {time}
+    </div>
+  )
   if (m.sample || m.sample_deleted) {
     return (
       <div className="flex justify-end">
-        <div className="w-full max-w-md">
-          {m.sample ? <SampleCard s={m.sample} compact /> : <div className="rounded-xl px-4 py-2 text-right text-xs text-zinc-400 italic">Namuna o'chirilgan</div>}
-          <div className="mt-1 text-right text-xs text-zinc-400">
-            {m.author} · {time}
-          </div>
+        <div className="w-full max-w-[85%] sm:max-w-sm">
+          {m.sample ? <SampleBubble s={m.sample} /> : <div className="text-right text-xs text-zinc-400 italic">Namuna o'chirilgan</div>}
+          {meta}
         </div>
       </div>
     )
   }
   return (
-    <div className={cx('flex', mine && 'justify-end')}>
+    <div className="flex justify-end">
       <div className="max-w-[85%] sm:max-w-lg">
-        <div
-          className={cx(
-            'rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap',
-            mine ? 'rounded-br-sm bg-brand-500 text-white' : 'rounded-bl-sm bg-white ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800',
-          )}
-        >
-          {m.text}
+        <div className="rounded-2xl rounded-br-sm bg-brand-500 px-4 py-2.5 text-sm whitespace-pre-wrap text-white">{m.text}</div>
+        {meta}
+      </div>
+    </div>
+  )
+}
+
+/** Xodim yuborgan namuna post — Telegram postidek: albom + matn */
+function SampleBubble({ s }: { s: Sample }) {
+  const [more, setMore] = useState(false)
+  return (
+    <div className="overflow-hidden rounded-2xl rounded-br-sm bg-brand-50 ring-1 ring-brand-100 dark:bg-brand-700/20 dark:ring-brand-700/40">
+      <Album images={s.images} compact />
+      <div className="space-y-1.5 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-2 text-xs text-zinc-500">
+          <span className="truncate">📎 Namuna · {s.source === 'own' ? "o'z kanalimiz" : s.source_name || 'boshqa kanal'}</span>
+          {s.analysis === null ? <span className="shrink-0">⏳</span> : <span className="shrink-0 text-green-700 dark:text-green-400">✓ o'rganildi</span>}
         </div>
-        {m.proposal && <ProposalBox m={m} />}
-        <div className={cx('mt-1 text-xs text-zinc-400', mine && 'text-right')}>
-          {mine ? m.author : '🤖 AI'} · {time}
-        </div>
+        {s.text && <p className={cx('whitespace-pre-wrap', !more && 'line-clamp-6')}>{s.text}</p>}
+        {(s.text.length > 250 || s.analysis) && (
+          <button className="text-xs text-brand-600 hover:underline" onClick={() => setMore(!more)}>
+            {more ? "Yig'ish" : s.analysis ? "To'liq va AI tahlili" : "To'liq"}
+          </button>
+        )}
+        {more && s.analysis && (
+          <div className="rounded-lg bg-white/70 p-2 text-xs text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
+            {s.image_desc && <p className="mb-1">🖼 {s.image_desc}</p>}
+            <p>🤖 {s.analysis}</p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -261,68 +309,22 @@ function LineDiff({ before, after }: { before: string; after: string }) {
   )
 }
 
-function Composer({ sending, onSend }: { sending: boolean; onSend: (text: string) => Promise<unknown> }) {
-  const [mode, setMode] = useState<'message' | 'sample'>('sample')
-  const [text, setText] = useState('')
-  return (
-    <Card className="space-y-3">
-      <div className="flex gap-1">
-        {(
-          [
-            ['sample', '📎 Namuna post'],
-            ['message', '💬 Xabar'],
-          ] as const
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setMode(k)}
-            className={cx('rounded-full px-3 py-1 text-sm', mode === k ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-700/20 dark:text-brand-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800')}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      {mode === 'sample' ? (
-        <SampleForm />
-      ) : (
-        <form
-          className="space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (text.trim()) onSend(text).then(() => setText(''), () => {})
-          }}
-        >
-          <textarea
-            className={inputClass}
-            rows={3}
-            maxLength={5000}
-            placeholder="Masalan: «Emojini kamroq ishlat», «Har postni savol bilan tugat», «Bu postlarda nimasi yaxshi?»"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit()
-            }}
-          />
-          <div className="flex justify-end">
-            <Button type="submit" disabled={sending || !text.trim()}>
-              Yuborish
-            </Button>
-          </div>
-        </form>
-      )}
-    </Card>
-  )
-}
+const isTouch = () => window.matchMedia('(pointer: coarse)').matches
 
-function SampleForm() {
+/** Pastdagi yozish maydoni: matn + 📎 rasmlar. Rasm biriktirilsa yoki «Namuna post» yoqilsa — namuna sifatida ketadi */
+function Composer() {
   const qc = useQueryClient()
   const [text, setText] = useState('')
   const [images, setImages] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
-  const [note, setNote] = useState('')
+  const [asSample, setAsSample] = useState(false)
+  // Manba saqlanib qoladi — bir kanaldan ketma-ket bir nechta post yuboriladi
   const [own, setOwn] = useState(false)
   const [sourceName, setSourceName] = useState('')
+  const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const textarea = useRef<HTMLTextAreaElement>(null)
+  const sample = asSample || images.length > 0
 
   useEffect(() => {
     const urls = images.map((f) => URL.createObjectURL(f))
@@ -330,29 +332,38 @@ function SampleForm() {
     return () => urls.forEach((u) => URL.revokeObjectURL(u))
   }, [images])
 
+  // Matnga qarab balandligi o'sadi
+  useEffect(() => {
+    const el = textarea.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 240)}px`
+  }, [text])
+
   // Telegram albomi kabi: 10 tagacha, qo'shilgan tartibda
   const addImages = (files: File[]) => setImages((prev) => [...prev, ...files.filter((f) => f.type.startsWith('image/'))].slice(0, MAX_ALBUM))
 
-  const add = useMutation({
+  const send = useMutation({
     mutationFn: () => {
       const form = new FormData()
       form.append('text', text)
+      form.append('sample', String(sample))
       form.append('source', own ? 'own' : 'other')
       form.append('source_name', own ? '' : sourceName)
-      form.append('image_note', note)
       images.forEach((f) => form.append('images', f))
-      return api.post<TrainMessage>('/content/chat/sample', form)
+      return api.post<TrainMessage>('/content/chat/message', form)
     },
     onSuccess: () => {
-      // Manba qoladi — bir kanaldan ketma-ket bir nechta post qo'shiladi
       setText('')
       setImages([])
-      setNote('')
-      if (fileInput.current) fileInput.current.value = ''
+      setAsSample(false)
       qc.invalidateQueries({ queryKey: ['train-chat'] })
       qc.invalidateQueries({ queryKey: ['samples'] })
+      textarea.current?.focus()
     },
   })
+  const canSend = !send.isPending && (text.trim().length > 0 || images.length > 0)
+  const submit = () => canSend && send.mutate()
 
   const onPaste = (e: ClipboardEvent) => {
     const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
@@ -363,80 +374,122 @@ function SampleForm() {
   }
 
   return (
-    <form
-      className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault()
-        add.mutate()
-      }}
-    >
-      <textarea
-        className={inputClass}
-        rows={4}
-        maxLength={5000}
-        placeholder="Post matni (rasmlarni shu yerga Ctrl+V bilan qo'yish ham mumkin)"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onPaste={onPaste}
-      />
-      <div className="flex flex-wrap gap-2">
-        {previews.map((url, k) => (
-          <div key={url} className="relative h-20 w-20 overflow-hidden rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-700">
-            <img src={url} alt="" className="h-full w-full object-cover" />
-            <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] text-white">{k + 1}</span>
-            <button
-              type="button"
-              aria-label="Olib tashlash"
-              onClick={() => setImages(images.filter((_, i) => i !== k))}
-              className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-red-600"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        {images.length < MAX_ALBUM && (
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            className="flex h-20 w-20 flex-col items-center justify-center rounded-lg bg-zinc-100 text-xs text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
-          >
-            <span className="text-lg">🖼</span>
-            {images.length ? '+ Yana' : 'Rasmlar'}
-          </button>
+    <div className="sticky bottom-16 z-30 -mx-4 bg-gradient-to-t from-zinc-50 from-70% px-4 pt-3 pb-2 md:bottom-0 md:-mx-8 md:px-8 md:pb-6 dark:from-zinc-950">
+      <ErrorBox error={send.error} />
+      <div
+        className={cx(
+          'mt-2 rounded-2xl bg-white shadow-sm ring-1 ring-zinc-300 focus-within:ring-2 focus-within:ring-brand-500 dark:bg-zinc-900 dark:ring-zinc-700',
+          dragging && 'ring-2 ring-brand-500',
         )}
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            addImages([...(e.target.files ?? [])])
-            e.target.value = ''
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragging(false)
+          addImages([...e.dataTransfer.files])
+        }}
+      >
+        {previews.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto px-3 pt-3">
+            {previews.map((url, k) => (
+              <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-700">
+                <img src={url} alt="" className="h-full w-full object-cover" />
+                <span className="absolute top-0.5 left-0.5 rounded bg-black/60 px-1 text-[10px] text-white">{k + 1}</span>
+                <button
+                  type="button"
+                  aria-label="Olib tashlash"
+                  onClick={() => setImages(images.filter((_, i) => i !== k))}
+                  className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {sample && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+            <span className="font-medium text-brand-600">📎 Namuna post</span>
+            <label className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300">
+              <input type="checkbox" checked={own} onChange={(e) => setOwn(e.target.checked)} className="accent-brand-500" />
+              o'z kanalimizdan
+            </label>
+            {!own && (
+              <input
+                className="min-w-0 flex-1 rounded-md bg-zinc-100 px-2 py-1 placeholder:text-zinc-400 focus:outline-none dark:bg-zinc-800"
+                placeholder="qaysi kanaldan (ixtiyoriy)"
+                value={sourceName}
+                onChange={(e) => setSourceName(e.target.value)}
+                maxLength={255}
+              />
+            )}
+          </div>
+        )}
+        <textarea
+          ref={textarea}
+          rows={1}
+          maxLength={5000}
+          className="block max-h-60 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm placeholder:text-zinc-400 focus:outline-none"
+          placeholder={sample ? 'Post matni (rasm tagidagi yozuv)…' : "Agentga yozing yoki 📎 bilan post yuboring…"}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onPaste={onPaste}
+          onKeyDown={(e) => {
+            // Kompyuterda Enter — yuborish, Shift+Enter — yangi qator; telefonda Enter — yangi qator
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !isTouch()) {
+              e.preventDefault()
+              submit()
+            }
           }}
         />
+        <div className="flex items-center gap-1 px-2 pb-2">
+          <button
+            type="button"
+            title="Rasm biriktirish (10 tagacha)"
+            onClick={() => fileInput.current?.click()}
+            disabled={images.length >= MAX_ALBUM}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-800"
+          >
+            📎
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              addImages([...(e.target.files ?? [])])
+              e.target.value = ''
+            }}
+          />
+          {images.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setAsSample(!asSample)}
+              className={cx(
+                'rounded-full px-3 py-1 text-xs',
+                asSample ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-700/30 dark:text-brand-100' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800',
+              )}
+            >
+              {asSample ? '✓ ' : ''}Rasmsiz post
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="Yuborish"
+            onClick={submit}
+            disabled={!canSend}
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 disabled:bg-zinc-200 disabled:text-zinc-400 dark:disabled:bg-zinc-800"
+          >
+            {send.isPending ? '…' : '↑'}
+          </button>
+        </div>
       </div>
-      {images.length > 0 && (
-        <input
-          className={inputClass}
-          placeholder="Rasmlar tavsifi (ixtiyoriy) — masalan: «qizil fonda atir, gul barglari»"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={1000}
-        />
-      )}
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={own} onChange={(e) => setOwn(e.target.checked)} className="accent-brand-500" />
-          O'z kanalimizdan
-        </label>
-        {!own && <input className={cx(inputClass, 'sm:max-w-60')} placeholder="Qaysi kanaldan (ixtiyoriy)" value={sourceName} onChange={(e) => setSourceName(e.target.value)} maxLength={255} />}
-        <Button type="submit" className="ml-auto" disabled={add.isPending || (!text.trim() && !images.length)}>
-          {add.isPending ? 'Qo\'shilmoqda…' : 'Qo\'shish'}
-        </Button>
-      </div>
-      <ErrorBox error={add.error} />
-    </form>
+    </div>
   )
 }
 

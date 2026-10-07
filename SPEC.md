@@ -123,7 +123,9 @@ Agent ishlagan sari o'rganadi. **Hamma post tasdiqdan o'tadi** (avto rejimda ham
 - Rasmlar: AI rasmni o'zi ko'radi (vision), xohlasa Editor tavsif yozadi. Rasmni agent **yaratmaydi**.
 
 - Holati (2026-10-07): **o'qitish chati, qo'llanma (versiyalar, farq ko'rinishi, qaytarish), namunalar — tayyor** (panel «📝 Kontent»).
-  Namunalar chatda yig'iladi, «🔍 Tahlil qilish» bosilganda agent hammasini birga ko'radi (rasm — arzon «low» sifatda).
+- Chat — chatbot ko'rinishida: pastda bitta yozish maydoni, 📎 bilan rasm(lar) biriktiriladi (rasmli xabar = namuna post,
+  rasmsizini «Rasmsiz post» bilan belgilash mumkin). Agent har xabarga fonda javob beradi; u yozayotganda yuborilganlar
+  navbatga tushib, keyingi bitta javobda birga ko'riladi. Rasm agentga arzon «low» sifatda beriladi.
 
 ### O'z kanalimizni o'qish
 - Bot kanalda admin — yangi chiqqan har bir post (qo'lda yozilganlar ham) avtomatik namunaga tushadi.

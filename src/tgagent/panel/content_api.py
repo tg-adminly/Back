@@ -9,7 +9,6 @@ from sqlalchemy import select
 
 from tgagent.agents.content import media, trainer
 from tgagent.agents.content.models import Sample, SampleSource, StyleGuide, TrainMessage
-from tgagent.core.llm import LlmError
 from tgagent.panel.api import D, Staff
 
 router = APIRouter(prefix="/api/content")
@@ -17,7 +16,7 @@ router = APIRouter(prefix="/api/content")
 NOT_FOUND = "Topilmadi."
 EMPTY_SAMPLE = "Post matni yoki rasmi bo'lishi kerak."
 TOO_MANY_IMAGES = "Bitta postda ko'pi bilan 10 ta rasm bo'ladi (Telegram albomi)."
-EMPTY_MESSAGE = "Xabar bo'sh. Yangi namuna ham yo'q."
+EMPTY_MESSAGE = "Xabar bo'sh."
 ALREADY_DECIDED = "Bu taklif bo'yicha qaror allaqachon qabul qilingan."
 EMPTY_GUIDE = "Qo'llanma bo'sh bo'lmasin."
 
@@ -67,27 +66,27 @@ async def usage(d: D, _: Staff):
 async def chat(d: D, _: Staff):
     async with d.sm() as s:
         msgs = await trainer.history(s)
-        pending = len(await trainer.pending_samples(s))
-    return {"messages": [message_out(m) for m in msgs], "pending_samples": pending}
+    return {"messages": [message_out(m) for m in msgs], "thinking": trainer.thinking(),
+            "error": trainer.responder.error}
 
 
-@router.post("/chat/sample")
-async def chat_sample(
+@router.post("/chat/message")
+async def chat_message(
     d: D,
     staff: Staff,
     text: Annotated[str, Form(max_length=5000)] = "",
+    sample: Annotated[bool, Form()] = False,  # namuna post (rasm biriktirilsa — doim namuna)
     source: Annotated[SampleSource, Form()] = SampleSource.OTHER,
     source_name: Annotated[str, Form(max_length=255)] = "",
     image_note: Annotated[str, Form(max_length=1000)] = "",
     images: Annotated[list[UploadFile], File()] = [],  # noqa: B006 — FastAPI har so'rovga yangisini beradi
 ):
-    """Namuna post: chatga qo'shiladi, agent «Tahlil qilish» bosilganda hammasini birga ko'radi."""
+    """Chatga xabar yoki namuna post. Agent fonda javob beradi — panel `GET /chat` ni so'rab turadi."""
     if len(images) > media.MAX_ALBUM:
         raise HTTPException(400, TOO_MANY_IMAGES)
-    files = [await f.read(media.MAX_BYTES + 1) for f in images]
-    files = [b for b in files if b]
+    files = [b for f in images if (b := await f.read(media.MAX_BYTES + 1))]
     if not text.strip() and not files:
-        raise HTTPException(400, EMPTY_SAMPLE)
+        raise HTTPException(400, EMPTY_SAMPLE if sample else EMPTY_MESSAGE)
     names: list[str] = []
     try:
         for data in files:
@@ -97,30 +96,21 @@ async def chat_sample(
             media.delete_image(d.settings.media_dir, name)
         raise HTTPException(400, str(e)) from None
     async with d.sm() as s:
-        msg = await trainer.add_sample(s, text=text, author=staff.name, source=source,
-                                       source_name=source_name.strip() or None, images=names, image_note=image_note)
-        return message_out(msg)
-
-
-class ChatIn(BaseModel):
-    text: str = Field("", max_length=5000)
-
-
-@router.post("/chat/message")
-async def chat_message(body: ChatIn, d: D, staff: Staff):
-    """Xodim xabari (bo'sh bo'lsa — faqat yangi namunalarni tahlil qilish) → agent javobi."""
-    if d.llm is None:
-        raise HTTPException(503, "AI ulanmagan.")
-    if not body.text.strip():
-        async with d.sm() as s:
-            if not await trainer.pending_samples(s):
-                raise HTTPException(400, EMPTY_MESSAGE)
-    try:
-        msg = await trainer.reply(d.sm, d.llm, channel=d.main_chat.title, author=staff.name, text=body.text,
-                                  media_dir=d.settings.media_dir)
-    except LlmError as e:
-        raise HTTPException(503, str(e)) from None
+        if sample or names:
+            msg = await trainer.add_sample(s, text=text, author=staff.name, source=source,
+                                           source_name=source_name.strip() or None, images=names,
+                                           image_note=image_note)
+        else:
+            msg = await trainer.add_message(s, text=text, author=staff.name)
+    await trainer.kick(d.sm, d.llm, channel=d.main_chat.title, media_dir=d.settings.media_dir)
     return message_out(msg)
+
+
+@router.post("/chat/retry")
+async def chat_retry(d: D, _: Staff):
+    """Xatodan keyin (masalan AI vaqtincha javob bermadi) javobni qayta so'rash."""
+    await trainer.kick(d.sm, d.llm, channel=d.main_chat.title, media_dir=d.settings.media_dir)
+    return {"ok": True}
 
 
 class DecisionIn(BaseModel):

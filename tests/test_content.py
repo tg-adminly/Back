@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 from types import SimpleNamespace
@@ -8,6 +9,7 @@ from cryptography.fernet import Fernet
 from PIL import Image as PILImage
 from test_panel import EDITOR, OWNER, FakeBot, H, login
 
+from tgagent.agents.content import trainer
 from tgagent.channels.telegram_bot.chats import ChatRef
 from tgagent.config import Settings
 from tgagent.core.crypto import Vault
@@ -31,8 +33,10 @@ class FakeAI:
 
 
 @pytest.fixture
-async def env(tmp_path):
-    engine = make_engine("sqlite+aiosqlite:///:memory:")
+async def env(tmp_path, monkeypatch):
+    monkeypatch.setattr(trainer, "responder", trainer._Responder())
+    # Fayl baza: agent fonda ishlaydi, :memory: esa bitta ulanishni hamma sessiyaga bo'lib beradi
+    engine = make_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
     await init_db(engine)
     sm = make_sessionmaker(engine)
     settings = Settings(
@@ -60,48 +64,54 @@ def jpeg(size=(2000, 1000)) -> bytes:
     return buf.getvalue()
 
 
+async def answered(env) -> dict:
+    """Agent fonda javob beradi — tugashini kutib, chatni qaytaradi."""
+    if trainer.responder.task:
+        await trainer.responder.task
+    return (await env.client.get("/api/content/chat")).json()
+
+
+async def send(env, text="", *, sample=False, images=(), **form):
+    files = [("images", (f"{i}.png", data, "image/png")) for i, data in enumerate(images)]
+    data = {"text": text, "sample": "true" if sample else "false", **form}
+    return await env.client.post("/api/content/chat/message", data=data, files=files or None, headers=H)
+
+
 async def test_training_chat_flow(env):
     await login(env, EDITOR)  # muharrir ham o'qitadi
     c = env.client
-
-    # Namunalar yig'iladi, agent hali javob bermaydi
-    r = await c.post("/api/content/chat/sample", data={"text": "Bahor keldi 🌸", "source_name": "@boshqa"},
-                     files=[("images", ("a.png", jpeg(), "image/png")), ("images", ("b.png", jpeg((300, 300)), "image/png"))],
-                     headers=H)
-    assert r.status_code == 200, r.text
-    first = r.json()["sample"]
-    await c.post("/api/content/chat/sample", data={"text": "Ikkinchi post"}, headers=H)
-    assert (await c.post("/api/content/chat/sample", data={"text": " "}, headers=H)).status_code == 400
-    eleven = [("images", (f"{i}.png", jpeg((10, 10)), "image/png")) for i in range(11)]
-    assert (await c.post("/api/content/chat/sample", files=eleven, headers=H)).status_code == 400
-    assert (await c.get("/api/content/chat")).json()["pending_samples"] == 2
-    assert env.ai.calls == []
-
-    # Rasm kichraytirib saqlangan va faqat xodimga ochiq
-    assert len(first["images"]) == 2  # albom: bir postda bir nechta rasm
-    img = await c.get(first["images"][0])
-    assert img.status_code == 200 and max(PILImage.open(io.BytesIO(img.content)).size) == 1280
-    assert (await c.get("/api/content/media/..%2F..%2Fsecret")).status_code == 404
-
-    # «Tahlil qilish»: agent namunalarni rasmi bilan ko'radi va qo'llanma taklif qiladi
     env.ai.answer = {
         "reply": "Ikkala post ham qisqa va iliq.",
-        "samples": [{"id": first["id"], "image_desc": "Pushti fon", "analysis": "Qisqa, emoji bilan."}],
-        "guide": "Ohang:\n- iliq, qisqa", "guide_note": "Ohang qo'shildi",
+        "samples": [], "guide": "Ohang:\n- iliq, qisqa", "guide_note": "Ohang qo'shildi",
     }
-    r = await c.post("/api/content/chat/message", json={"text": ""}, headers=H)
+
+    # Rasmli xabar — doim namuna post (albom); agent fonda javob beradi
+    r = await send(env, "Bahor keldi 🌸", images=[jpeg(), jpeg((300, 300))], source_name="@boshqa")
     assert r.status_code == 200, r.text
-    reply = r.json()
-    assert reply["proposal_status"] == "pending" and reply["proposal_note"] == "Ohang qo'shildi"
+    first = r.json()["sample"]
+    env.ai.answer["samples"] = [{"id": first["id"], "image_desc": "Pushti fon", "analysis": "Qisqa, emoji bilan."}]
+    chat = await answered(env)
+    assert chat["thinking"] is False and chat["error"] is None
+    reply = chat["messages"][-1]
+    assert reply["role"] == "assistant" and reply["proposal_status"] == "pending"
     sent = env.ai.calls[-1]
     assert sum(len(m.images) for m in sent) == 2
     assert "album of 2 photos" in "\n".join(m.text for m in sent)
     assert "@boshqa" in "\n".join(m.text for m in sent)
+    assert chat["messages"][0]["sample"]["image_desc"] == "Pushti fon"
 
-    chat = (await c.get("/api/content/chat")).json()
-    assert chat["pending_samples"] == 0
-    analysed = next(m["sample"] for m in chat["messages"] if m["sample"] and m["sample"]["id"] == first["id"])
-    assert analysed["image_desc"] == "Pushti fon"
+    # Rasmsiz namuna (belgilangan) va bo'sh/ortiqcha so'rovlar
+    env.ai.answer = {"reply": "Ko'rdim", "samples": [], "guide": None, "guide_note": None}
+    assert (await send(env, "Matnli post", sample=True)).json()["sample"]["text"] == "Matnli post"
+    await answered(env)
+    assert (await send(env, " ")).status_code == 400
+    eleven = [jpeg((10, 10))] * 11
+    assert (await send(env, images=eleven)).status_code == 400
+
+    # Rasm kichraytirib saqlangan va faqat xodimga ochiq
+    img = await c.get(first["images"][0])
+    assert img.status_code == 200 and max(PILImage.open(io.BytesIO(img.content)).size) == 1280
+    assert (await c.get("/api/content/media/..%2F..%2Fsecret")).status_code == 404
 
     # Qo'llanma faqat tasdiqlangandan keyin o'zgaradi; xodim tuzatib qabul qilishi mumkin
     assert (await c.get("/api/content/guide")).json()["current"] is None
@@ -112,7 +122,8 @@ async def test_training_chat_flow(env):
 
     # Keyingi suhbatda agent joriy qo'llanmani ko'radi
     env.ai.answer = {"reply": "Xo'p", "samples": [], "guide": None, "guide_note": None}
-    await c.post("/api/content/chat/message", json={"text": "Kamroq emoji ishlat"}, headers=H)
+    await send(env, "Kamroq emoji ishlat")
+    await answered(env)
     assert "Ohang:\n- iliq" in "\n".join(m.text for m in env.ai.calls[-1])
 
     # Qo'lda tahrir va eski versiyaga qaytarish
@@ -130,13 +141,37 @@ async def test_training_chat_flow(env):
     assert msgs[0]["sample_deleted"] is True
 
 
+async def test_messages_while_thinking_get_one_reply(env):
+    """Agent o'ylayotganda yuborilgan postlar navbatga tushadi va keyingi bitta javobda birga ko'riladi."""
+    await login(env)
+    gate = asyncio.Event()
+    real = env.ai.__call__
+
+    async def slow(messages, schema):
+        await gate.wait()
+        return await real(messages, schema)
+
+    env.llm.provider = slow
+    await send(env, "1-post", sample=True)
+    assert (await env.client.get("/api/content/chat")).json()["thinking"] is True
+    await send(env, "2-post", sample=True)
+    await send(env, "3-post", sample=True)
+    gate.set()
+    chat = await answered(env)
+    assert len(env.ai.calls) == 2  # 1-post uchun, keyin 2- va 3-post birga
+    second = "\n".join(m.text for m in env.ai.calls[1])
+    assert "2-post" in second and "3-post" in second
+    assert [m["role"] for m in chat["messages"]] == ["user", "user", "user", "assistant", "assistant"]
+
+
 async def test_new_proposal_supersedes_old(env):
     await login(env)
     env.ai.answer = {"reply": "a", "samples": [], "guide": "v1", "guide_note": "1"}
-    one = (await env.client.post("/api/content/chat/message", json={"text": "x"}, headers=H)).json()
+    await send(env, "x")
+    one = (await answered(env))["messages"][-1]
     env.ai.answer = {"reply": "b", "samples": [], "guide": "v2", "guide_note": "2"}
-    await env.client.post("/api/content/chat/message", json={"text": "y"}, headers=H)
-    msgs = {m["id"]: m for m in (await env.client.get("/api/content/chat")).json()["messages"]}
+    await send(env, "y")
+    msgs = {m["id"]: m for m in (await answered(env))["messages"]}
     assert msgs[one["id"]]["proposal_status"] == "superseded"
 
 
@@ -144,10 +179,13 @@ async def test_monthly_limit_stops_ai(env):
     await login(env)
     # Har so'rov: 1000*0.25 + 500*2.0 = $0.00125; limit $1 → narxni sun'iy oshiramiz
     env.llm.settings.llm_price_out = 1_000_000.0
-    assert (await env.client.post("/api/content/chat/message", json={"text": "salom"}, headers=H)).status_code == 200
+    await send(env, "salom")
+    assert (await answered(env))["error"] is None
     usage = (await env.client.get("/api/content/usage")).json()
     assert usage["month_cost"] >= usage["limit"] and usage["enabled"]
-    r = await env.client.post("/api/content/chat/message", json={"text": "yana"}, headers=H)
-    assert r.status_code == 503 and "limiti" in r.json()["detail"]
-    await env.client.post("/api/content/chat/message", json={"text": "yana"}, headers=H)
+    assert (await send(env, "yana")).status_code == 200  # xabar saqlanadi, javob — xato
+    chat = await answered(env)
+    assert "limiti" in chat["error"] and chat["messages"][-1]["text"] == "yana"
+    await env.client.post("/api/content/chat/retry", headers=H)
+    assert "limiti" in (await answered(env))["error"]
     assert env.limit_hits == [1]  # egasiga bir marta xabar
